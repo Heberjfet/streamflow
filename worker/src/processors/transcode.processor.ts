@@ -6,11 +6,13 @@ import { TranscodeJobData, computeWorkerConfig } from '../types';
 import { ffprobe, runFfmpeg } from '../services/ffmpeg.service';
 import { s3Service } from '../services/s3.service';
 import {
-  filterLadder,
+  buildLadder,
   transcodeRendition,
   createDownloadableMp4,
   extractPosterThumbnail,
   createMasterPlaylist,
+  DEFAULT_LADDER,
+  RenditionProfile,
 } from '../services/transcoding.service';
 import postgres from 'postgres';
 
@@ -22,20 +24,28 @@ function sanitizeErrorMessage(error: unknown): string {
 }
 
 async function updateAssetStatus(
+  sql: ReturnType<typeof postgres>,
   assetId: string,
   status: 'pending' | 'processing' | 'ready' | 'failed',
   outputKey?: string,
   thumbnailKey?: string,
-  durationSec?: number
+  durationSec?: number,
+  progress?: number
 ) {
-  const sql = postgres(process.env.DATABASE_URL || '', { max: 1 });
-  const query = `
+  await sql`
     UPDATE assets
-    SET status = $1, hls_manifest_key = $2, thumbnail_key = $3, duration = COALESCE($4, duration), updated_at = NOW()
-    WHERE id = $5
+    SET status = ${status},
+        hls_manifest_key = COALESCE(${outputKey ?? null}, hls_manifest_key),
+        thumbnail_key = COALESCE(${thumbnailKey ?? null}, thumbnail_key),
+        duration = COALESCE(${durationSec ?? null}, duration),
+        progress = COALESCE(${progress ?? null}, progress),
+        updated_at = NOW()
+    WHERE id = ${assetId}
   `;
-  await sql.unsafe(query, [status, outputKey ?? null, thumbnailKey ?? null, durationSec ?? null, assetId]);
-  await sql.end();
+}
+
+async function setProgress(sql: ReturnType<typeof postgres>, assetId: string, progress: number) {
+  await sql`UPDATE assets SET progress = ${progress}, updated_at = NOW() WHERE id = ${assetId}`;
 }
 
 const workerConfig = computeWorkerConfig();
@@ -50,13 +60,22 @@ export async function transcodeProcessor(job: { data: TranscodeJobData; updatePr
   const { assetId, inputKey } = job.data;
   console.log(`[Transcode] Starting job for asset: ${assetId}`);
 
+  const sql = postgres(process.env.DATABASE_URL || '', { max: 1 });
   const tmpDir = path.join(os.tmpdir(), `streamflow-${randomUUID()}`);
-  let sourcePath = path.join(tmpDir, 'source.mp4');
+  const sourcePath = path.join(tmpDir, 'source.mp4');
   const outputDir = path.join(tmpDir, 'hls');
   await mkdir(outputDir, { recursive: true });
 
   try {
-    await updateAssetStatus(assetId, 'processing');
+    // Ajustes globales (escalera, encoder y threads) definidos por el admin.
+    const rows = await sql`SELECT transcode_profiles, encoder, ffmpeg_threads FROM settings LIMIT 1`;
+    const settingsRow = (rows[0] ?? {}) as Record<string, unknown>;
+    const profilesRaw = settingsRow.transcode_profiles as Array<Record<string, unknown>> | null | undefined;
+    const encoder = (settingsRow.encoder as string) || 'libx264';
+    const threads = (settingsRow.ffmpeg_threads as number | null) ?? workerConfig.ffmpegThreads;
+
+    await updateAssetStatus(sql, assetId, 'processing', undefined, undefined, undefined, 0);
+    await job.updateProgress(1);
 
     console.log(`[Transcode] Downloading source from S3: ${inputKey}`);
     await s3Service.downloadFile(inputKey, sourcePath);
@@ -76,30 +95,47 @@ export async function transcodeProcessor(job: { data: TranscodeJobData; updatePr
 
     await job.updateProgress(10);
 
-    const ladder = filterLadder(probe.width, probe.height);
-    console.log(`[Transcode] Ladder: ${ladder.map(p => p.quality).join(', ')}`);
+    const sourceProfiles = ((profilesRaw && profilesRaw.length ? profilesRaw : DEFAULT_LADDER) as Array<Record<string, unknown>>)
+      .filter(p => p.active !== false)
+      .map(p => ({
+        quality: String(p.quality),
+        width: Number(p.width),
+        height: Number(p.height),
+        bitrateKbps: Number(p.bitrateKbps),
+        codec: (p.codec === 'h265' ? 'h265' : 'h264') as 'h264' | 'h265',
+      })) as RenditionProfile[];
+
+    const ladder = buildLadder(sourceProfiles, probe.width, probe.height);
+    if (ladder.length === 0) {
+      throw new Error('No hay calidades de transcodificación configuradas');
+    }
+
+    console.log(`[Transcode] Encoder: ${encoder} | Ladder: ${ladder.map(p => p.quality).join(', ')}`);
 
     let completedSteps = 10;
     const stepSize = 70 / ladder.length;
 
     for (const profile of ladder) {
       console.log(`[Transcode] Transcoding ${profile.quality}...`);
-      await transcodeRendition(sourcePath, outputDir, profile, probe.duration, workerConfig.ffmpegThreads);
-
+      await transcodeRendition(sourcePath, outputDir, profile, probe.duration, threads, encoder);
       await createDownloadableMp4(outputDir, profile);
 
       completedSteps += stepSize;
-      await job.updateProgress(Math.min(completedSteps, 80));
+      const p = Math.min(Math.round(completedSteps), 80);
+      await job.updateProgress(p);
+      await setProgress(sql, assetId, p);
     }
 
     console.log('[Transcode] Generating thumbnails...');
     await generateThumbnails(sourcePath, outputDir, probe.duration);
     await extractPosterThumbnail(sourcePath, outputDir, probe.duration);
     await job.updateProgress(85);
+    await setProgress(sql, assetId, 85);
 
     console.log('[Transcode] Creating master playlist...');
     await createMasterPlaylist(outputDir, ladder);
     await job.updateProgress(90);
+    await setProgress(sql, assetId, 90);
 
     console.log('[Transcode] Uploading to S3...');
     await s3Service.uploadFolder(outputDir, `assets/${assetId}/hls`);
@@ -107,7 +143,7 @@ export async function transcodeProcessor(job: { data: TranscodeJobData; updatePr
     const masterKey = `assets/${assetId}/hls/master.m3u8`;
     const thumbnailKey = `assets/${assetId}/hls/thumbnail.jpg`;
 
-    await updateAssetStatus(assetId, 'ready', masterKey, thumbnailKey, Math.round(probe.duration));
+    await updateAssetStatus(sql, assetId, 'ready', masterKey, thumbnailKey, Math.round(probe.duration), 100);
     await job.updateProgress(100);
 
     console.log(`[Transcode] Job completed for asset: ${assetId}`);
@@ -115,9 +151,14 @@ export async function transcodeProcessor(job: { data: TranscodeJobData; updatePr
   } catch (error) {
     const errorMessage = sanitizeErrorMessage(error);
     console.error(`[Transcode] Job failed for asset ${assetId}:`, errorMessage);
-    await updateAssetStatus(assetId, 'failed');
+    await updateAssetStatus(sql, assetId, 'failed');
     throw error;
   } finally {
+    try {
+      await sql.end();
+    } catch {
+      // ignorar
+    }
     try {
       await rm(tmpDir, { recursive: true, force: true });
     } catch (cleanupError) {

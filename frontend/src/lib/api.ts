@@ -67,6 +67,7 @@ export interface Asset {
   categoryId?: string
   categoryIds?: string[]
   status: 'pending' | 'uploading' | 'uploaded' | 'processing' | 'ready' | 'failed'
+  progress?: number
   playbackId?: string
   thumbnailKey?: string
   hlsManifestKey?: string
@@ -329,4 +330,66 @@ export const getUserContent = async (userId: string): Promise<ApiResponse<{ asse
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
   })
   return handleResponse<{ assets: Asset[]; categories: Category[] }>(res)
+}
+
+export interface TranscodeProfile {
+  quality: string
+  width: number
+  height: number
+  bitrateKbps: number
+  codec: 'h264' | 'h265'
+  active: boolean
+}
+
+export interface EncoderOption {
+  id: string
+  label: string
+  hardware: boolean
+}
+
+export interface AppSettings {
+  transcodeProfiles: TranscodeProfile[]
+  allowedExtensions: string[]
+  encoder: string
+  concurrency?: number | null
+  ffmpegThreads?: number | null
+}
+
+export interface SystemInfo {
+  cpuCores: number
+  cpuModel: string
+  totalMemGB: number
+  freeMemGB: number
+  platform: string
+  availableEncoders: EncoderOption[]
+}
+
+export const getSettings = async (): Promise<ApiResponse<AppSettings>> => {
+  const res = await fetch(`${getApiUrl()}/v1/settings`, {
+    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+  })
+  return handleResponse<AppSettings>(res)
+}
+
+export const getAdminSettings = async (): Promise<ApiResponse<AppSettings & { availableEncoders: EncoderOption[] }>> => {
+  const res = await fetch(`${getApiUrl()}/v1/admin/settings`, {
+    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+  })
+  return handleResponse<AppSettings & { availableEncoders: EncoderOption[] }>(res)
+}
+
+export const getAdminSystem = async (): Promise<ApiResponse<SystemInfo>> => {
+  const res = await fetch(`${getApiUrl()}/v1/admin/system`, {
+    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+  })
+  return handleResponse<SystemInfo>(res)
+}
+
+export const updateAdminSettings = async (data: Partial<AppSettings>): Promise<ApiResponse<AppSettings>> => {
+  const res = await fetch(`${getApiUrl()}/v1/admin/settings`, {
+    method: 'PUT',
+    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<AppSettings>(res)
 }

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS "assets" (
 	"description" text,
 	"category_id" uuid,
 	"status" varchar(50) DEFAULT 'pending' NOT NULL,
+	"progress" integer DEFAULT 0 NOT NULL,
 	"playback_id" varchar(255),
 	"duration" integer,
 	"thumbnail_key" varchar(500),
@@ -33,6 +34,16 @@ CREATE TABLE IF NOT EXISTS "categories" (
 	"slug" varchar(255) NOT NULL,
 	"description" text,
 	"created_at" timestamp DEFAULT now()
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "settings" (
+	"id" varchar(32) PRIMARY KEY NOT NULL,
+	"transcode_profiles" jsonb NOT NULL,
+	"allowed_extensions" jsonb NOT NULL,
+	"encoder" varchar(50) DEFAULT 'libx264' NOT NULL,
+	"concurrency" integer,
+	"ffmpeg_threads" integer,
+	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "users" (

@@ -94,6 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
               <SidebarLink href="/dashboard/users" icon="users" active={pathname === '/dashboard/users'} isOpen={isSidebarOpen}>Usuarios</SidebarLink>
               <SidebarLink href="/dashboard/logs" icon="log" active={pathname === '/dashboard/logs'} isOpen={isSidebarOpen}>Actividad</SidebarLink>
+              <SidebarLink href="/dashboard/settings" icon="settings" active={pathname === '/dashboard/settings'} isOpen={isSidebarOpen}>Ajustes</SidebarLink>
             </div>
           )}
 
@@ -151,6 +152,7 @@ function SidebarLink({ href, icon, children, active, isOpen }: { href: string, i
       case 'folder': return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
       case 'users': return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
       case 'log': return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      case 'settings': return <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
       default: return null
     }
   }

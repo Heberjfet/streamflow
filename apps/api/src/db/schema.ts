@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, varchar, integer, uuid, boolean, index, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, varchar, integer, uuid, boolean, jsonb, index, unique } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -36,6 +36,7 @@ export const assets = pgTable('assets', {
   description: text('description'),
   categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
   status: varchar('status', { length: 50 }).notNull().default('pending'),
+  progress: integer('progress').notNull().default(0),
   playbackId: varchar('playback_id', { length: 255 }).unique(),
   duration: integer('duration'),
   thumbnailKey: varchar('thumbnail_key', { length: 500 }),
@@ -51,11 +52,23 @@ export const assets = pgTable('assets', {
   userIdIdx: index('assets_user_id_idx').on(table.userId)
 }));
 
+// Ajustes globales (fila única, id = 'default')
+export const settings = pgTable('settings', {
+  id: varchar('id', { length: 32 }).primaryKey(),
+  transcodeProfiles: jsonb('transcode_profiles').notNull(),
+  allowedExtensions: jsonb('allowed_extensions').notNull(),
+  encoder: varchar('encoder', { length: 50 }).notNull().default('libx264'),
+  concurrency: integer('concurrency'),
+  ffmpegThreads: integer('ffmpeg_threads'),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
 export const schema = {
   users,
   categories,
   assetCategories,
-  assets
+  assets,
+  settings
 };
 
 export type User = typeof users.$inferSelect;
@@ -64,6 +77,16 @@ export type Asset = typeof assets.$inferSelect;
 export type NewAsset = typeof assets.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
+export type Settings = typeof settings.$inferSelect;
+
+export interface TranscodeProfile {
+  quality: string;
+  width: number;
+  height: number;
+  bitrateKbps: number;
+  codec: 'h264' | 'h265';
+  active: boolean;
+}
 
 export const USER_ROLES = {
   OWNER: 'owner',
@@ -79,3 +102,24 @@ export const ASSET_STATUS = {
   READY: 'ready',
   FAILED: 'failed'
 } as const;
+
+export const DEFAULT_TRANSCODE_PROFILES: TranscodeProfile[] = [
+  { quality: '360p', width: 640, height: 360, bitrateKbps: 1000, codec: 'h264', active: true },
+  { quality: '480p', width: 854, height: 480, bitrateKbps: 1800, codec: 'h264', active: true },
+  { quality: '720p', width: 1280, height: 720, bitrateKbps: 3000, codec: 'h264', active: true },
+  { quality: '1080p', width: 1920, height: 1080, bitrateKbps: 6000, codec: 'h264', active: true },
+  { quality: '1440p', width: 2560, height: 1440, bitrateKbps: 12000, codec: 'h264', active: false },
+  { quality: '2160p', width: 3840, height: 2160, bitrateKbps: 24000, codec: 'h264', active: false }
+];
+
+export const DEFAULT_ALLOWED_EXTENSIONS = [
+  'mp4', 'mkv', 'mov', 'webm', 'avi', 'm4v', 'mpg', 'mpeg', 'ts', 'flv', 'wmv', '3gp'
+];
+
+export const AVAILABLE_ENCODERS = [
+  { id: 'libx264', label: 'CPU — H.264 (libx264)', hardware: false },
+  { id: 'libx265', label: 'CPU — H.265 (libx265)', hardware: false },
+  { id: 'h264_vaapi', label: 'GPU — VAAPI (Linux/Intel/AMD)', hardware: true },
+  { id: 'h264_nvenc', label: 'GPU — NVIDIA NVENC', hardware: true },
+  { id: 'h264_qsv', label: 'GPU — Intel Quick Sync', hardware: true }
+];

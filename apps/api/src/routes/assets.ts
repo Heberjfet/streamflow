@@ -9,6 +9,7 @@ import {
   updateAssetSchema,
   assetParamsSchema
 } from '../schemas/assets.js';
+import { getSettings } from '../services/settings.service.js';
 
 interface ListQuery {
   page?: number;
@@ -201,6 +202,15 @@ export async function assetRoutes(fastify: FastifyInstance) {
       const data = await request.file();
       if (!data) {
         return reply.status(400).send({ error: 'No file uploaded' });
+      }
+
+      const settings = await getSettings(fastify);
+      const allowed = (settings.allowedExtensions as string[]) || [];
+      const ext = (data.filename.split('.').pop() || '').toLowerCase();
+      if (allowed.length > 0 && !allowed.includes(ext)) {
+        return reply.status(415).send({
+          error: `Formato no permitido (.${ext || '?'}). Permitidos: ${allowed.join(', ')}`
+        });
       }
 
       const key = s3Service.getAssetPath(userId, id, 'original');

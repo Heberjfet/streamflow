@@ -1,5 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { sql } from 'drizzle-orm';
+import os from 'os';
+import { sql, eq } from 'drizzle-orm';
+import { getSettings } from '../services/settings.service.js';
+import { AVAILABLE_ENCODERS } from '../db/schema.js';
 
 interface StatsResponse {
   totalAssets: number;
@@ -161,6 +164,49 @@ export async function adminRoutes(fastify: FastifyInstance) {
         assets: userAssets,
         categories: userCategories
       });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  fastify.get('/system', async (_request, reply) => {
+    const totalMemGB = os.totalmem() / (1024 ** 3);
+    const freeMemGB = os.freemem() / (1024 ** 3);
+    return reply.send({
+      cpuCores: os.cpus().length,
+      cpuModel: os.cpus()[0]?.model || 'desconocido',
+      totalMemGB: Math.round(totalMemGB * 10) / 10,
+      freeMemGB: Math.round(freeMemGB * 10) / 10,
+      platform: `${os.platform()} ${os.arch()}`,
+      availableEncoders: AVAILABLE_ENCODERS
+    });
+  });
+
+  fastify.get('/settings', async (_request, reply) => {
+    const settings = await getSettings(fastify);
+    return reply.send({ ...settings, availableEncoders: AVAILABLE_ENCODERS });
+  });
+
+  fastify.put<{ Body: { transcodeProfiles?: unknown[]; allowedExtensions?: string[]; encoder?: string; concurrency?: number; ffmpegThreads?: number } }>('/settings', async (request, reply) => {
+    try {
+      const settings = await getSettings(fastify);
+      const { transcodeProfiles, allowedExtensions, encoder, concurrency, ffmpegThreads } = request.body;
+
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (transcodeProfiles !== undefined) updates.transcodeProfiles = transcodeProfiles;
+      if (allowedExtensions !== undefined) updates.allowedExtensions = allowedExtensions;
+      if (encoder !== undefined) updates.encoder = encoder;
+      if (concurrency !== undefined) updates.concurrency = concurrency;
+      if (ffmpegThreads !== undefined) updates.ffmpegThreads = ffmpegThreads;
+
+      const [updated] = await fastify.db
+        .update(fastify.schema.settings)
+        .set(updates)
+        .where(eq(fastify.schema.settings.id, settings.id))
+        .returning();
+
+      return reply.send(updated);
     } catch (error) {
       fastify.log.error(error);
       return reply.status(500).send({ error: 'Internal server error' });

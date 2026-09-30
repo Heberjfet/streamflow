@@ -11,6 +11,7 @@ import { userRoutes } from './routes/users.js';
 import { assetRoutes } from './routes/assets.js';
 import { playbackRoutes } from './routes/playback.js';
 import { categoryRoutes } from './routes/categories.js';
+import { settingsRoutes } from './routes/settings.js';
 import { adminRoutes } from './routes/admin.js';
 
 async function buildApp() {
@@ -49,6 +50,7 @@ async function buildApp() {
   await fastify.register(assetRoutes, { prefix: '/v1/assets' });
   await fastify.register(playbackRoutes, { prefix: '/v1/playback' });
   await fastify.register(categoryRoutes, { prefix: '/v1/categories' });
+  await fastify.register(settingsRoutes, { prefix: '/v1/settings' });
   await fastify.register(adminRoutes, { prefix: '/v1/admin' });
 
   fastify.get('/health', async () => {

@@ -60,6 +60,12 @@ export function VideoCard({ asset, showStatus = true }: VideoCardProps) {
             </div>
           )}
 
+          {(asset.status === 'processing' || asset.status === 'uploading') && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/60">
+              <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${asset.progress ?? 0}%` }} />
+            </div>
+          )}
+
           {showStatus && needsStatusLabel && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
               <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />

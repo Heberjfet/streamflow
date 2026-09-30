@@ -35,7 +35,8 @@ services:
       - s3_data:/data
       - ./docker/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
     ports:
-      - "9000:8333"
+      - "9000:8333"   # API S3
+      - "8888:8888"   # Filer UI (explorador de archivos)
     restart: unless-stopped
 
   api:

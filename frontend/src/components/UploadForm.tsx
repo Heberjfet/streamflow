@@ -19,6 +19,7 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [allowedExtensions, setAllowedExtensions] = useState<string[]>([])
 
   useEffect(() => {
     return () => {
@@ -27,6 +28,20 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
       }
     }
   }, [])
+
+  useEffect(() => {
+    import('@/lib/api')
+      .then(({ getSettings }) =>
+        getSettings().then(({ data }) => {
+          if (data?.allowedExtensions?.length) setAllowedExtensions(data.allowedExtensions)
+        })
+      )
+      .catch(() => {})
+  }, [])
+
+  const acceptAttr = allowedExtensions.length
+    ? allowedExtensions.map((e) => '.' + e).join(',')
+    : 'video/*'
 
   const resetForm = () => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
@@ -43,13 +58,14 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
 
   // --- NAVEGACIÓN Y SELECCIÓN DE ARCHIVO ---
   const handleFileSelect = useCallback((file: File) => {
-    const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
-    if (!validTypes.includes(file.type)) {
-      setError('Formato inválido. Por favor selecciona MP4, WebM, MOV o AVI.')
+    const ext = (file.name.split('.').pop() || '').toLowerCase()
+    const allowed = allowedExtensions.length ? allowedExtensions : ['mp4', 'mkv', 'mov', 'webm', 'avi', 'm4v']
+    if (!allowed.includes(ext)) {
+      setError(`Formato no permitido (.${ext || '?'}). Permitidos: ${allowed.join(', ')}.`)
       return
     }
-    if (file.size > 5 * 1024 * 1024 * 1024) {
-      setError('El tamaño del archivo debe ser menor a 5GB.')
+    if (file.size > 10 * 1024 * 1024 * 1024) {
+      setError('El tamaño del archivo debe ser menor a 10GB.')
       return
     }
     setSelectedFile(file)
@@ -59,7 +75,7 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
       setVideoTitle(nameWithoutExt)
     }
     setStep(2) // Avanzamos al paso de título
-  }, [videoTitle])
+  }, [videoTitle, allowedExtensions])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -196,7 +212,7 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
             className={`text-center p-12 border-2 border-dashed rounded-3xl cursor-pointer transition-all duration-300 animate-in fade-in slide-in-from-right-4 ${isDragging ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
               }`}
           >
-            <input ref={fileInputRef} type="file" accept="video/*" onChange={handleInputChange} className="hidden" />
+            <input ref={fileInputRef} type="file" accept={acceptAttr} onChange={handleInputChange} className="hidden" />
             <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 text-[var(--text-secondary)] group-hover:text-[var(--primary)] transition-colors">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
             </div>
