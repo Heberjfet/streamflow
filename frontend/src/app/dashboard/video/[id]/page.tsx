@@ -15,7 +15,6 @@ const statusConfig = {
   uploading: { label: 'Subiendo', color: 'text-yellow-400', dot: 'bg-yellow-400' },
   processing: { label: 'Procesando', color: 'text-purple-400', dot: 'bg-purple-500 animate-pulse' },
   ready: { label: 'Publicado', color: 'text-green-400', dot: 'bg-green-500' },
-  completed: { label: 'Completado', color: 'text-green-400', dot: 'bg-green-500' },
   failed: { label: 'Error', color: 'text-red-400', dot: 'bg-red-500' },
 }
 const defaultStatus = { label: 'Desconocido', color: 'text-white/40', dot: 'bg-white/40' }
@@ -41,7 +40,7 @@ export default function VideoDetailPage() {
       const data = await getAsset(params.id)
       if (data) {
         setAsset(data)
-        if ((data.status === 'ready' || data.status === 'completed') && data.playbackId) {
+        if (data.status === 'ready' && data.playbackId) {
           const { getPublicPlayback } = await import('@/lib/api')
           const { data: playbackData, error: playbackError } = await getPublicPlayback(params.id)
           if (playbackData) {

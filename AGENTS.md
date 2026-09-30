@@ -10,7 +10,7 @@ streamflow-v2/
 └── docker-compose.yml # Postgres 16, Redis, MinIO, API, Worker, Frontend
 ```
 
-Note: `package.json` lists `packages/*` in workspaces, but that directory does not exist. Do not assume a `packages/db` package exists.
+Note: the `packages/*` workspace was removed because that directory does not exist. Database scripts run against `apps/api`.
 
 ## Key Commands
 

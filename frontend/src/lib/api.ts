@@ -66,7 +66,7 @@ export interface Asset {
   description?: string
   categoryId?: string
   categoryIds?: string[]
-  status: 'pending' | 'uploading' | 'processing' | 'ready' | 'completed' | 'failed'
+  status: 'pending' | 'uploading' | 'processing' | 'ready' | 'failed'
   playbackId?: string
   thumbnailKey?: string
   hlsManifestKey?: string
@@ -170,7 +170,7 @@ export const deleteCategory = async (categoryId: string): Promise<ApiResponse<vo
   return handleResponse<void>(res)
 }
 
-export const updateAsset = async (assetId: string, data: { categoryId?: string; title?: string; description?: string }): Promise<ApiResponse<Asset>> => {
+export const updateAsset = async (assetId: string, data: { categoryId?: string; categoryIds?: string[]; title?: string; description?: string }): Promise<ApiResponse<Asset>> => {
   const res = await fetch(`${getApiUrl()}/v1/assets/${assetId}`, {
     method: 'PUT',
     headers: { ...authHeader(), 'Content-Type': 'application/json' },

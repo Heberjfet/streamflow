@@ -23,7 +23,7 @@ function sanitizeErrorMessage(error: unknown): string {
 
 async function updateAssetStatus(
   assetId: string,
-  status: 'pending' | 'processing' | 'completed' | 'failed',
+  status: 'pending' | 'processing' | 'ready' | 'failed',
   outputKey?: string,
   thumbnailKey?: string
 ) {

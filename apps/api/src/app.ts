@@ -23,14 +23,14 @@ async function buildApp() {
   });
 
   const allowedOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
-    : ['*'];
+    ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+    : ['http://localhost:3000'];
+  const allowAllOrigins = allowedOrigins.includes('*');
 
   await fastify.register(cors, {
-    origin: allowedOrigins.includes('*')
-      ? true
-      : allowedOrigins,
-    credentials: true,
+    origin: allowAllOrigins ? true : allowedOrigins,
+    // No se puede combinar el comodín '*' con credenciales.
+    credentials: !allowAllOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
   });
 

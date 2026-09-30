@@ -1,13 +1,7 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcrypt';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { eq } from 'drizzle-orm';
 import { users } from '../db/schema.js';
-import { eq, or, like } from 'drizzle-orm';
-
-const connectionString = process.env.DATABASE_URL || 'postgres://streamflow:streamflow@postgres:5432/streamflow';
-const client = postgres(connectionString, { max: 10 });
-const db = drizzle(client, { schema: { users } });
 
 interface UserQuery {
   page?: string;
@@ -17,27 +11,25 @@ interface UserQuery {
 }
 
 export async function userRoutes(fastify: FastifyInstance) {
-  fastify.get('/', { preHandler: [fastify.adminOnly] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/', { preHandler: [fastify.adminOnly] }, async (request, reply) => {
     try {
       const query = request.query as UserQuery;
       const page = parseInt(query.page || '1');
       const limit = parseInt(query.limit || '20');
       const offset = (page - 1) * limit;
 
-      let whereClause: any = undefined;
-      
-      if (query.role && query.role !== 'all') {
-        whereClause = eq(users.role, query.role as 'admin' | 'editor' | 'viewer');
-      }
+      const whereClause: ReturnType<typeof eq> | undefined = query.role && query.role !== 'all'
+        ? eq(users.role, query.role)
+        : undefined;
 
-      const usersList = await db.query.users.findMany({
+      const usersList = await fastify.db.query.users.findMany({
         where: whereClause,
         limit,
         offset,
         orderBy: (users, { desc }) => [desc(users.createdAt)]
       });
 
-      const allUsers = await db.query.users.findMany();
+      const allUsers = await fastify.db.query.users.findMany();
       const total = allUsers.length;
 
       return reply.send({
@@ -66,7 +58,7 @@ export async function userRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>('/:id', { preHandler: [fastify.adminOnly] }, async (request, reply) => {
     try {
       const { id } = request.params;
-      const user = await db.query.users.findFirst({
+      const user = await fastify.db.query.users.findFirst({
         where: eq(users.id, id)
       });
 
@@ -94,7 +86,7 @@ export async function userRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       const { name, email, role, password } = request.body;
 
-      const existingUser = await db.query.users.findFirst({
+      const existingUser = await fastify.db.query.users.findFirst({
         where: eq(users.id, id)
       });
 
@@ -102,7 +94,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'User not found' });
       }
 
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updatedAt: new Date()
       };
 
@@ -111,7 +103,7 @@ export async function userRoutes(fastify: FastifyInstance) {
       if (role) updateData.role = role;
       if (password) updateData.passwordHash = await bcrypt.hash(password, 12);
 
-      const [updatedUser] = await db
+      const [updatedUser] = await fastify.db
         .update(users)
         .set(updateData)
         .where(eq(users.id, id))
@@ -136,7 +128,7 @@ export async function userRoutes(fastify: FastifyInstance) {
     try {
       const { email, name, password, role = 'viewer' } = request.body;
 
-      const existingUser = await db.query.users.findFirst({
+      const existingUser = await fastify.db.query.users.findFirst({
         where: eq(users.email, email)
       });
 
@@ -146,7 +138,7 @@ export async function userRoutes(fastify: FastifyInstance) {
 
       const passwordHash = await bcrypt.hash(password, 12);
 
-      const [newUser] = await db
+      const [newUser] = await fastify.db
         .insert(users)
         .values({
           email,
@@ -175,7 +167,7 @@ export async function userRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
 
-      const user = await db.query.users.findFirst({
+      const user = await fastify.db.query.users.findFirst({
         where: eq(users.id, id)
       });
 
@@ -184,7 +176,7 @@ export async function userRoutes(fastify: FastifyInstance) {
       }
 
       if (user.role === 'admin') {
-        const allAdmins = await db.query.users.findMany({
+        const allAdmins = await fastify.db.query.users.findMany({
           where: eq(users.role, 'admin')
         });
         if (allAdmins.length <= 1) {
@@ -192,7 +184,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         }
       }
 
-      await db.delete(users).where(eq(users.id, id));
+      await fastify.db.delete(users).where(eq(users.id, id));
 
       return reply.status(204).send();
     } catch (error) {

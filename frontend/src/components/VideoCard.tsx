@@ -32,7 +32,7 @@ const formatDate = (dateString: string): string => {
 }
 
 export function VideoCard({ asset, showStatus = true }: VideoCardProps) {
-  const needsStatusLabel = asset.status !== 'ready' && asset.status !== 'completed'
+  const needsStatusLabel = asset.status !== 'ready'
   const statusInfo = statusConfig[asset.status as keyof typeof statusConfig]
 
   return (

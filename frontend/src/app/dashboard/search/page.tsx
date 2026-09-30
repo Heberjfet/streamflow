@@ -11,7 +11,6 @@ const statusColors: Record<string, string> = {
     uploading: 'text-yellow-400',
     processing: 'text-blue-400',
     ready: 'text-green-400',
-    completed: 'text-green-400',
     failed: 'text-red-400',
 }
 

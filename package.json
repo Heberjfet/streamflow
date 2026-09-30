@@ -5,7 +5,6 @@
   "description": "Plataforma de Video Self-Hosted para streaming personal",
   "workspaces": [
     "apps/*",
-    "packages/*",
     "worker",
     "frontend"
   ],
@@ -20,13 +19,13 @@
     "build:frontend": "npm run build --workspace=frontend",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "db:generate": "npm run db:generate --workspace=packages/db",
-    "db:migrate": "npm run db:migrate --workspace=packages/db",
-    "db:push": "npm run db:push --workspace=packages/db",
+    "db:generate": "npm run db:generate --workspace=apps/api",
+    "db:migrate": "npm run db:migrate --workspace=apps/api",
+    "db:push": "npm run db:push --workspace=apps/api",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules worker/node_modules"
+    "clean": "node -e \"const {rmSync}=require('node:fs'); for (const p of ['node_modules','apps/api/node_modules','worker/node_modules','frontend/node_modules']) rmSync(p,{recursive:true,force:true})\""
   },
   "keywords": [
     "video",

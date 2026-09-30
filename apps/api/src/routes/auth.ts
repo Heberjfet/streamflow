@@ -1,28 +1,14 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcrypt';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-
-const connectionString = process.env.DATABASE_URL || 'postgres://streamflow:streamflow@postgres:5432/streamflow';
-const client = postgres(connectionString, { max: 10 });
-const db = drizzle(client, { schema: { users } });
+import { users } from '../db/schema.js';
 
 export async function authRoutes(fastify: FastifyInstance) {
-  const authenticate = async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      await request.jwtVerify();
-    } catch (err) {
-      reply.status(401).send({ error: 'Unauthorized' });
-    }
-  };
-
   fastify.post<{ Body: { email: string; password: string; name: string } }>('/register', async (request, reply) => {
     try {
       const { email, password, name } = request.body;
 
-      const existingUser = await db.query.users.findFirst({
+      const existingUser = await fastify.db.query.users.findFirst({
         where: eq(users.email, email)
       });
 
@@ -32,11 +18,11 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       const passwordHash = await bcrypt.hash(password, 12);
 
-      const allUsers = await db.query.users.findMany();
+      const allUsers = await fastify.db.query.users.findMany();
       const isFirstUser = allUsers.length === 0;
       const role = isFirstUser ? 'admin' : 'viewer';
 
-      const [user] = await db
+      const [user] = await fastify.db
         .insert(users)
         .values({
           email,
@@ -46,10 +32,10 @@ export async function authRoutes(fastify: FastifyInstance) {
         })
         .returning();
 
-      const token = request.server.jwt.sign({
+      const token = fastify.jwt.sign({
         userId: user.id,
         email: user.email,
-        role: user.role as 'admin' | 'editor' | 'viewer'
+        role
       });
 
       return reply.status(201).send({
@@ -69,7 +55,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     try {
       const { email, password } = request.body;
 
-      const user = await db.query.users.findFirst({
+      const user = await fastify.db.query.users.findFirst({
         where: eq(users.email, email)
       });
 
@@ -82,7 +68,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.status(401).send({ error: 'Invalid credentials' });
       }
 
-      const token = request.server.jwt.sign({
+      const token = fastify.jwt.sign({
         userId: user.id,
         email: user.email,
         role: user.role as 'admin' | 'editor' | 'viewer'
@@ -114,11 +100,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.send({ message: 'Google OAuth callback - implement with google-auth-library' });
   });
 
-  fastify.get('/me', { onRequest: [authenticate] }, async (request, reply) => {
+  fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     try {
-      const decoded = await request.jwtVerify() as any;
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, decoded.userId)
+      const userId = request.currentUser!.userId;
+      const user = await fastify.db.query.users.findFirst({
+        where: eq(users.id, userId)
       });
 
       if (!user) {
@@ -138,7 +124,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post('/logout', { onRequest: [authenticate] }, async (request, reply) => {
+  fastify.post('/logout', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     return reply.send({ message: 'Logged out successfully' });
   });
 }

@@ -69,7 +69,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
       request.currentUser = user;
       request.orgId = user.orgId || null;
     } catch (err) {
-      reply.status(401).send({ error: 'Unauthorized' });
+      return reply.status(401).send({ error: 'Unauthorized' });
     }
   };
 
@@ -123,11 +123,11 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
       const decoded = await request.jwtVerify();
       const user = decoded as CurrentUser;
       if (user.role !== 'admin') {
-        reply.status(403).send({ error: 'Forbidden: Admin access required' });
+        return reply.status(403).send({ error: 'Forbidden: Admin access required' });
       }
       request.currentUser = user;
     } catch (err) {
-      reply.status(401).send({ error: 'Unauthorized' });
+      return reply.status(401).send({ error: 'Unauthorized' });
     }
   };
 
@@ -139,6 +139,7 @@ export default fp(async function authPlugin(fastify: FastifyInstance) {
       return;
     }
     reply.status(403).send({ error: 'Forbidden: Organization admin access required' });
+    return;
   };
 
   fastify.decorate('adminOnly', adminOnlyFn);

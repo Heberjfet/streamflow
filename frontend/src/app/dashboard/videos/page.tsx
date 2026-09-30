@@ -13,7 +13,6 @@ const statusStyles = {
     uploading: { label: 'Subiendo', color: 'text-purple-400', dot: 'bg-purple-500' },
     processing: { label: 'Procesando', color: 'text-blue-400', dot: 'bg-blue-500 animate-pulse' },
     ready: { label: 'Live', color: 'text-green-400', dot: 'bg-green-500' },
-    completed: { label: 'Live', color: 'text-green-400', dot: 'bg-green-500' },
     failed: { label: 'Error', color: 'text-red-400', dot: 'bg-red-500' },
 }
 const defaultStatus = { label: 'Desconocido', color: 'text-white/30', dot: 'bg-white/30' }
