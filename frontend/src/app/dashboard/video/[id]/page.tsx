@@ -41,8 +41,8 @@ export default function VideoDetailPage() {
       if (data) {
         setAsset(data)
         if (data.status === 'ready' && data.playbackId) {
-          const { getPublicPlayback } = await import('@/lib/api')
-          const { data: playbackData, error: playbackError } = await getPublicPlayback(params.id)
+          const { getPlayback } = await import('@/lib/api')
+          const { data: playbackData, error: playbackError } = await getPlayback(data.playbackId)
           if (playbackData) {
             setHlsUrl(playbackData.manifestUrl)
             setAllowDownload(playbackData.allowDownload ?? false)

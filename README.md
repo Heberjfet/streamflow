@@ -13,7 +13,7 @@ StreamFlow v2 es una plataforma de streaming de video que permite subir, transco
 - **Thumbnail sprites** — Vista previa en scrubber del reproductor
 - **HLS playback adaptativo** — Streaming con HLS.js
 - **Job queue** — BullMQ para procesamiento confiable de videos
-- **Auth** — JWT + OAuth Google
+- **Auth** — JWT (email + contraseña)
 - **Catálogos** — Organización de videos con relación muchos-a-muchos
 - **Docker ready** — Despliegue simple con Docker Compose
 - **Reverse proxy nginx** — Frontend y API bajo el mismo dominio
@@ -201,7 +201,6 @@ NEXT_PUBLIC_S3_URL=https://flow.tudominio.com/s3
 |--------|------|-------------|
 | POST | `/v1/auth/register` | Registro de usuario |
 | POST | `/v1/auth/login` | Login con JWT |
-| GET | `/v1/auth/google` | Login con Google |
 | GET | `/v1/auth/me` | Usuario actual |
 
 ### Assets (Videos)

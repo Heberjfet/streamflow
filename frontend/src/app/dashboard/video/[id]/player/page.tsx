@@ -17,8 +17,14 @@ export default function VideoPlayerPage() {
     const loadPlayback = async () => {
       if (!params.id || typeof params.id !== 'string') return
 
-      const { getPlayback } = await import('@/lib/api')
-      const { data, error: fetchError } = await getPlayback(params.id)
+      const { getAsset, getPlayback } = await import('@/lib/api')
+      const { data: asset, error: assetError } = await getAsset(params.id)
+      if (assetError || !asset || !asset.playbackId) {
+        setError(assetError || 'Video not found')
+        setLoading(false)
+        return
+      }
+      const { data, error: fetchError } = await getPlayback(asset.playbackId)
 
       if (fetchError || !data) {
         setError(fetchError || 'Video not found')

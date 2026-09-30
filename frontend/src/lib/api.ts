@@ -195,13 +195,6 @@ export const getPlayback = async (playbackId: string): Promise<ApiResponse<Playb
   return handleResponse<PlaybackResponse>(res)
 }
 
-export const getPublicPlayback = async (assetId: string): Promise<ApiResponse<PlaybackResponse>> => {
-  const res = await fetch(`${getApiUrl()}/v1/assets/${assetId}/playback`, {
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
-  })
-  return handleResponse<PlaybackResponse>(res)
-}
-
 export interface User {
   id: string
   email: string
@@ -257,7 +250,7 @@ export const updateUser = async (userId: string, data: { name?: string; email?: 
 }
 
 export const deleteUser = async (userId: string): Promise<ApiResponse<void>> => {
-  const res = await fetch(`${getApiUrl()}/v1/admin/${userId}`, {
+  const res = await fetch(`${getApiUrl()}/v1/users/${userId}`, {
     method: 'DELETE',
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
   })
@@ -331,28 +324,4 @@ export const getUserContent = async (userId: string): Promise<ApiResponse<{ asse
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
   })
   return handleResponse<{ assets: Asset[]; categories: Category[] }>(res)
-}
-
-export interface PlaybackEventBody {
-  eventType: string
-  sessionId: string
-  currentTime?: number
-  duration?: number
-  qualityHeight?: number
-  referrer?: string
-  playerType?: string
-  bufferDurationMs?: number
-  errorMessage?: string
-}
-
-export const sendPlaybackEvent = async (playbackId: string, event: PlaybackEventBody): Promise<void> => {
-  try {
-    await fetch(`${getApiUrl()}/v1/playback/${playbackId}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(event),
-    })
-  } catch (err) {
-    console.error('Failed to send playback event:', err)
-  }
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import hls from 'hls.js'
-import { sendPlaybackEvent } from '@/lib/api'
 import { fixS3Hostname } from '@/lib/s3'
 
 interface VideoPlayerProps {
@@ -34,8 +33,6 @@ export function VideoPlayer({ src, poster, autoplay = false, playbackId }: Video
 
   const [videoSrc, setVideoSrc] = useState(src)
   const [posterImg, setPosterImg] = useState(poster)
-  const sessionIdRef = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).slice(2)}`)
-  const heartbeatSentRef = useRef(false)
 
   useEffect(() => {
     setVideoSrc(fixS3Hostname(src))
@@ -219,20 +216,6 @@ export function VideoPlayer({ src, poster, autoplay = false, playbackId }: Video
     }
   }, [isPlaying])
 
-  useEffect(() => {
-    if (!playbackId || !isPlaying) return
-    const interval = setInterval(() => {
-      sendPlaybackEvent(playbackId, {
-        eventType: 'heartbeat',
-        sessionId: sessionIdRef.current,
-        currentTime: videoRef.current?.currentTime,
-        duration: videoRef.current?.duration,
-        playerType: 'hls.js',
-      })
-    }, 30000)
-    return () => clearInterval(interval)
-  }, [playbackId, isPlaying])
-
   const toggleMute = () => {
     const video = videoRef.current
     if (!video) return
@@ -281,17 +264,6 @@ export function VideoPlayer({ src, poster, autoplay = false, playbackId }: Video
         onPlay={() => {
           setIsPlaying(true)
           setShowCenterIcon(false)
-          if (playbackId && !heartbeatSentRef.current) {
-            heartbeatSentRef.current = true
-            sendPlaybackEvent(playbackId, {
-              eventType: 'view_start',
-              sessionId: sessionIdRef.current,
-              currentTime: videoRef.current?.currentTime,
-              duration: videoRef.current?.duration,
-              playerType: 'hls.js',
-              referrer: typeof window !== 'undefined' ? window.location.href : undefined,
-            })
-          }
         }}
         onPause={() => {
           setIsPlaying(false)

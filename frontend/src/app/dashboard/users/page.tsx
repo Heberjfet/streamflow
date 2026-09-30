@@ -333,7 +333,7 @@ export default function UsersAdminPage() {
                           <div key={asset.id} className="flex items-center gap-4 p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
                             <div className="w-20 shrink-0 aspect-video rounded-lg bg-black overflow-hidden relative">
                               {asset.thumbnailKey ? (
-                                <img src={`http://localhost:9000/streamflow/${asset.thumbnailKey}`} alt={asset.title} className="w-full h-full object-cover" />
+                                <img src={getS3Url(asset.thumbnailKey)} alt={asset.title} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center"><svg className="w-4 h-4 text-white/20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></div>
                               )}

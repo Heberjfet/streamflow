@@ -90,16 +90,6 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/google', async (request, reply) => {
-    const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&response_type=code&scope=email%20profile&redirect_uri=${process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/v1/auth/callback'}`;
-    return reply.redirect(url);
-  });
-
-  fastify.get('/callback', async (request, reply) => {
-    return reply.send({ message: 'Google OAuth callback - implement with google-auth-library' });
-  });
-
   fastify.get('/me', { onRequest: [fastify.authenticate] }, async (request, reply) => {
     try {
       const userId = request.currentUser!.userId;
