@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import multipart from '@fastify/multipart';
 import authPlugin from './plugins/auth.js';
 import dbPlugin from './plugins/db.js';
 import redisPlugin from './plugins/redis.js';
@@ -17,8 +16,7 @@ async function buildApp() {
   const fastify = Fastify({
     logger: {
       level: 'info'
-    },
-    bodyLimit: 10 * 1024 * 1024 * 1024
+    }
   });
 
   const allowedOrigins = process.env.CORS_ORIGINS
@@ -31,12 +29,6 @@ async function buildApp() {
     // No se puede combinar el comodín '*' con credenciales.
     credentials: !allowAllOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
-  });
-
-  await fastify.register(multipart, {
-    limits: {
-      fileSize: 10 * 1024 * 1024 * 1024
-    }
   });
 
   await fastify.register(dbPlugin);
@@ -77,7 +69,7 @@ const app = await buildApp();
 
 const start = async () => {
   try {
-    const port = parseInt(process.env.PORT || '3000');
+    const port = parseInt(process.env.PORT || '3001');
     const host = process.env.HOST || '0.0.0.0';
 
     await app.listen({ port, host });

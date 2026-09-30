@@ -9,6 +9,7 @@ import Link from 'next/link'
 const statusColors: Record<string, string> = {
     pending: 'text-white/40',
     uploading: 'text-yellow-400',
+    uploaded: 'text-blue-400',
     processing: 'text-blue-400',
     ready: 'text-green-400',
     failed: 'text-red-400',

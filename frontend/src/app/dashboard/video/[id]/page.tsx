@@ -13,6 +13,7 @@ import { getS3Url } from '@/lib/s3'
 const statusConfig = {
   pending: { label: 'Pendiente', color: 'text-white/40', dot: 'bg-white/40' },
   uploading: { label: 'Subiendo', color: 'text-yellow-400', dot: 'bg-yellow-400' },
+  uploaded: { label: 'Subido', color: 'text-blue-400', dot: 'bg-blue-500' },
   processing: { label: 'Procesando', color: 'text-purple-400', dot: 'bg-purple-500 animate-pulse' },
   ready: { label: 'Publicado', color: 'text-green-400', dot: 'bg-green-500' },
   failed: { label: 'Error', color: 'text-red-400', dot: 'bg-red-500' },

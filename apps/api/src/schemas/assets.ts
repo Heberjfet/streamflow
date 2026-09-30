@@ -1,21 +1,15 @@
+// Schemas de validación de requests (Fastify / JSON Schema).
+// Nota: solo se validan entradas (body, params, querystring); no se definen
+// schemas de respuesta para no filtrar campos por error.
+
 export const registerSchema = {
   body: {
     type: 'object',
     required: ['email', 'password', 'name'],
     properties: {
-      email: { type: 'string', format: 'email' },
+      email: { type: 'string', minLength: 3 },
       password: { type: 'string', minLength: 8 },
       name: { type: 'string', minLength: 1 }
-    }
-  },
-  response: {
-    201: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        email: { type: 'string' },
-        name: { type: 'string' }
-      }
     }
   }
 };
@@ -25,24 +19,8 @@ export const loginSchema = {
     type: 'object',
     required: ['email', 'password'],
     properties: {
-      email: { type: 'string', format: 'email' },
-      password: { type: 'string' }
-    }
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        token: { type: 'string' },
-        user: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            name: { type: 'string' }
-          }
-        }
-      }
+      email: { type: 'string', minLength: 3 },
+      password: { type: 'string', minLength: 1 }
     }
   }
 };
@@ -51,20 +29,10 @@ export const assetListSchema = {
   querystring: {
     type: 'object',
     properties: {
-      page: { type: 'integer', default: 1 },
-      limit: { type: 'integer', default: 20 },
-      categoryId: { type: 'string' }
-    }
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        data: { type: 'array' },
-        total: { type: 'integer' },
-        page: { type: 'integer' },
-        limit: { type: 'integer' }
-      }
+      page: { type: 'integer', minimum: 1 },
+      limit: { type: 'integer', minimum: 1 },
+      categoryId: { type: 'string' },
+      status: { type: 'string' }
     }
   }
 };
@@ -81,6 +49,28 @@ export const createAssetSchema = {
   }
 };
 
+export const updateAssetSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', minLength: 1 },
+      description: { type: 'string' },
+      categoryId: { type: 'string' },
+      categoryIds: { type: 'array', items: { type: 'string' } }
+    }
+  }
+};
+
+export const assetParamsSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' }
+    }
+  }
+};
+
 export const uploadUrlSchema = {
   params: {
     type: 'object',
@@ -93,73 +83,39 @@ export const uploadUrlSchema = {
     type: 'object',
     required: ['filename', 'contentType'],
     properties: {
-      filename: { type: 'string' },
-      contentType: { type: 'string' }
-    }
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        uploadUrl: { type: 'string' },
-        key: { type: 'string' }
-      }
+      filename: { type: 'string', minLength: 1 },
+      contentType: { type: 'string', minLength: 1 }
     }
   }
 };
 
-export const processAssetSchema = {
+export const categoryCreateSchema = {
+  body: {
+    type: 'object',
+    required: ['name'],
+    properties: {
+      name: { type: 'string', minLength: 1 },
+      description: { type: 'string' }
+    }
+  }
+};
+
+export const categoryUpdateSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', minLength: 1 },
+      description: { type: 'string' }
+    }
+  }
+};
+
+export const categoryParamsSchema = {
   params: {
     type: 'object',
     required: ['id'],
     properties: {
       id: { type: 'string' }
-    }
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        jobId: { type: 'string' }
-      }
-    }
-  }
-};
-
-export const playbackSchema = {
-  params: {
-    type: 'object',
-    required: ['id'],
-    properties: {
-      id: { type: 'string' }
-    }
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        manifestUrl: { type: 'string' },
-        thumbnailUrl: { type: 'string' }
-      }
-    }
-  }
-};
-
-export const publicPlaybackSchema = {
-  params: {
-    type: 'object',
-    required: ['playbackId'],
-    properties: {
-      playbackId: { type: 'string' }
-    }
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        manifestUrl: { type: 'string' },
-        thumbnailUrl: { type: 'string' }
-      }
     }
   }
 };

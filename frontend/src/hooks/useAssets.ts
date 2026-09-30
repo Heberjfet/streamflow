@@ -7,7 +7,7 @@ import {
   createAsset as apiCreateAsset,
   deleteAsset as apiDeleteAsset,
   getUploadUrl as apiGetUploadUrl,
-  uploadToS3,
+  completeUpload as apiCompleteUpload,
   processAsset as apiProcessAsset,
   type Asset,
 } from '@/lib/api'
@@ -115,6 +115,9 @@ export function useAssets(): UseAssetsReturn {
           xhr.onerror = () => reject(new Error('Upload failed'))
           xhr.send(file)
         })
+
+        const { error: completeError } = await apiCompleteUpload(assetId)
+        if (completeError) return false
 
         return true
       } catch {

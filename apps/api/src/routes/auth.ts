@@ -2,9 +2,10 @@ import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcrypt';
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema.js';
+import { registerSchema, loginSchema } from '../schemas/assets.js';
 
 export async function authRoutes(fastify: FastifyInstance) {
-  fastify.post<{ Body: { email: string; password: string; name: string } }>('/register', async (request, reply) => {
+  fastify.post<{ Body: { email: string; password: string; name: string } }>('/register', { schema: registerSchema }, async (request, reply) => {
     try {
       const { email, password, name } = request.body;
 
@@ -51,7 +52,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post<{ Body: { email: string; password: string } }>('/login', async (request, reply) => {
+  fastify.post<{ Body: { email: string; password: string } }>('/login', { schema: loginSchema }, async (request, reply) => {
     try {
       const { email, password } = request.body;
 

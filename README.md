@@ -211,7 +211,8 @@ NEXT_PUBLIC_S3_URL=https://flow.tudominio.com/s3
 | GET | `/v1/assets/:id` | Detalle de asset |
 | PUT | `/v1/assets/:id` | Actualizar asset |
 | DELETE | `/v1/assets/:id` | Eliminar asset |
-| POST | `/v1/assets/:id/upload` | Subir archivo (multipart) |
+| POST | `/v1/assets/:id/upload-url` | Obtener URL firmada para subir |
+| POST | `/v1/assets/:id/upload-complete` | Confirmar subida |
 | POST | `/v1/assets/:id/process` | Iniciar transcoding |
 
 ### Catálogos
@@ -255,10 +256,17 @@ curl -X POST http://localhost:3001/v1/assets \
   -H "Content-Type: application/json" \
   -d '{"title": "Mi Video"}'
 
-# 2. Subir archivo (multipart)
-curl -X POST http://localhost:3001/v1/assets/ASSET_ID/upload \
+# 2. Obtener URL firmada para subir el archivo directamente a S3
+curl -X POST http://localhost:3001/v1/assets/ASSET_ID/upload-url \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@video.mp4"
+  -H "Content-Type: application/json" \
+  -d '{"filename":"video.mp4","contentType":"video/mp4"}'
+# → responde { uploadUrl, key }. Subir el archivo con:
+curl -X PUT "<uploadUrl>" -H "Content-Type: video/mp4" --upload-file video.mp4
+
+# 2b. Confirmar la subida
+curl -X POST http://localhost:3001/v1/assets/ASSET_ID/upload-complete \
+  -H "Authorization: Bearer $TOKEN"
 
 # 3. Iniciar transcoding
 curl -X POST http://localhost:3001/v1/assets/ASSET_ID/process \

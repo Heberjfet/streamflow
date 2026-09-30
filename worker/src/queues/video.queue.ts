@@ -30,15 +30,6 @@ export async function addTranscodeJob(data: {
   });
 }
 
-export async function addThumbnailJob(data: {
-  assetId: string;
-  sourceKey: string;
-}) {
-  return videoQueue.add(JOB_TYPES.GENERATE_THUMBNAILS, data, {
-    jobId: `thumbnails-${data.assetId}`,
-  });
-}
-
 export async function closeQueue() {
   await videoQueue.close();
   await queueEvents.close();

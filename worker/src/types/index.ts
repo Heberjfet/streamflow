@@ -19,11 +19,6 @@ export interface TranscodeJobData {
   renditions?: RenditionProfile[];
 }
 
-export interface ThumbnailJobData {
-  assetId: string;
-  sourceKey: string;
-}
-
 export interface JobResult {
   success: boolean;
   assetId: string;
@@ -55,7 +50,6 @@ export const RENDITIONS: RenditionProfile[] = [
 export const VIDEO_QUEUE_NAME = 'video-processing';
 export const JOB_TYPES = {
   TRANSCODE: 'transcode',
-  GENERATE_THUMBNAILS: 'generate-thumbnails',
 } as const;
 
 export function computeWorkerConfig(): WorkerConfig {

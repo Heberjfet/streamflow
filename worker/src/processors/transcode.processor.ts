@@ -25,15 +25,16 @@ async function updateAssetStatus(
   assetId: string,
   status: 'pending' | 'processing' | 'ready' | 'failed',
   outputKey?: string,
-  thumbnailKey?: string
+  thumbnailKey?: string,
+  durationSec?: number
 ) {
   const sql = postgres(process.env.DATABASE_URL || '', { max: 1 });
   const query = `
     UPDATE assets
-    SET status = $1, hls_manifest_key = $2, thumbnail_key = $3, updated_at = NOW()
-    WHERE id = $4
+    SET status = $1, hls_manifest_key = $2, thumbnail_key = $3, duration = COALESCE($4, duration), updated_at = NOW()
+    WHERE id = $5
   `;
-  await sql.unsafe(query, [status, outputKey ?? null, thumbnailKey ?? null, assetId]);
+  await sql.unsafe(query, [status, outputKey ?? null, thumbnailKey ?? null, durationSec ?? null, assetId]);
   await sql.end();
 }
 
@@ -106,7 +107,7 @@ export async function transcodeProcessor(job: { data: TranscodeJobData; updatePr
     const masterKey = `assets/${assetId}/hls/master.m3u8`;
     const thumbnailKey = `assets/${assetId}/hls/thumbnail.jpg`;
 
-    await updateAssetStatus(assetId, 'ready', masterKey, thumbnailKey);
+    await updateAssetStatus(assetId, 'ready', masterKey, thumbnailKey, Math.round(probe.duration));
     await job.updateProgress(100);
 
     console.log(`[Transcode] Job completed for asset: ${assetId}`);

@@ -11,6 +11,7 @@ interface VideoCardProps {
 
 const statusConfig = {
   uploading: { label: 'Subiendo...', classes: 'text-amber-400' },
+  uploaded: { label: 'Subido', classes: 'text-blue-400' },
   processing: { label: 'Procesando...', classes: 'text-blue-400' },
   failed: { label: 'Error', classes: 'text-red-400' },
 }

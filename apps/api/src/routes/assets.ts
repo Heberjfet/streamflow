@@ -1,8 +1,15 @@
 import { FastifyInstance } from 'fastify';
-import { PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import { S3Service } from '../services/s3.service.js';
 import { AssetService } from '../services/asset.service.js';
 import { ASSET_STATUS } from '../db/schema.js';
+import {
+  assetListSchema,
+  createAssetSchema,
+  updateAssetSchema,
+  assetParamsSchema,
+  uploadUrlSchema
+} from '../schemas/assets.js';
 
 interface ListQuery {
   page?: number;
@@ -25,7 +32,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
   const s3Service = new S3Service(fastify.s3, fastify.s3Config);
   const assetService = new AssetService(s3Service, fastify.transcodeQueue);
 
-  fastify.get<{ Querystring: ListQuery }>('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get<{ Querystring: ListQuery }>('/', { onRequest: [fastify.authenticate], schema: assetListSchema }, async (request, reply) => {
     try {
       const page = request.query.page || 1;
       const limit = request.query.limit || 20;
@@ -63,7 +70,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post<{ Body: CreateBody }>('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post<{ Body: CreateBody }>('/', { onRequest: [fastify.authenticate], schema: createAssetSchema }, async (request, reply) => {
     try {
       const { title, description, categoryId } = request.body;
       const playbackId = assetService.generatePlaybackId();
@@ -88,7 +95,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get<{ Params: AssetParams }>('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.get<{ Params: AssetParams }>('/:id', { onRequest: [fastify.authenticate], schema: assetParamsSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
       const userId = request.currentUser!.userId;
@@ -112,7 +119,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.put<{ Params: AssetParams; Body: { categoryId?: string; categoryIds?: string[]; title?: string; description?: string } }>('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put<{ Params: AssetParams; Body: { categoryId?: string; categoryIds?: string[]; title?: string; description?: string } }>('/:id', { onRequest: [fastify.authenticate], schema: { ...assetParamsSchema, ...updateAssetSchema } }, async (request, reply) => {
     try {
       const { id } = request.params;
       const userId = request.currentUser!.userId;
@@ -175,7 +182,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post<{ Params: AssetParams; Body: { filename: string; contentType: string } }>('/:id/upload-url', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post<{ Params: AssetParams; Body: { filename: string; contentType: string } }>('/:id/upload-url', { onRequest: [fastify.authenticate], schema: uploadUrlSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
       const { filename, contentType } = request.body;
@@ -194,14 +201,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
       }
 
       const key = s3Service.getAssetPath(userId, id, filename);
-      const command = new PutObjectCommand({
-        Bucket: fastify.s3Config.bucket,
-        Key: key,
-        ContentType: contentType
-      });
-
-      const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
-      const uploadUrl = await getSignedUrl(fastify.s3, command, { expiresIn: 3600 });
+      const uploadUrl = await fastify.generateUploadUrl(key, contentType);
 
       await fastify.db
         .update(fastify.schema.assets)
@@ -219,7 +219,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post<{ Params: AssetParams }>('/:id/upload-complete', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post<{ Params: AssetParams }>('/:id/upload-complete', { onRequest: [fastify.authenticate], schema: assetParamsSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
       const userId = request.currentUser!.userId;
@@ -261,57 +261,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post<{ Params: AssetParams }>('/:id/upload', { onRequest: [fastify.authenticate] }, async (request, reply) => {
-    try {
-      const { id } = request.params;
-      const userId = request.currentUser!.userId;
-
-      const [asset] = await fastify.db.query.assets.findMany({
-        where: (assets, { eq }) => eq(assets.id, id)
-      });
-
-      if (!asset) {
-        return reply.status(404).send({ error: 'Asset not found' });
-      }
-
-      if (asset.userId !== userId) {
-        return reply.status(403).send({ error: 'Forbidden' });
-      }
-
-      const data = await request.file();
-      if (!data) {
-        return reply.status(400).send({ error: 'No file uploaded' });
-      }
-
-      const filename = 'original';
-      const key = s3Service.getAssetPath(userId, id, filename);
-
-      const buffer = await data.toBuffer();
-
-      fastify.log.info(`Uploading ${buffer.length} bytes to S3: ${key}`);
-
-      const command = new PutObjectCommand({
-        Bucket: fastify.s3Config.bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: data.mimetype
-      });
-
-      await fastify.s3.send(command);
-
-      await fastify.db
-        .update(fastify.schema.assets)
-        .set({ sourceKey: key, status: ASSET_STATUS.UPLOADED })
-        .where(fastify.eq(fastify.schema.assets.id, id));
-
-      return reply.send({ success: true, key });
-    } catch (error) {
-      fastify.log.error(error);
-      return reply.status(500).send({ error: 'Internal server error' });
-    }
-  });
-
-  fastify.post<{ Params: AssetParams }>('/:id/process', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post<{ Params: AssetParams }>('/:id/process', { onRequest: [fastify.authenticate], schema: assetParamsSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
       const userId = request.currentUser!.userId;
@@ -343,7 +293,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.delete<{ Params: AssetParams }>('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.delete<{ Params: AssetParams }>('/:id', { onRequest: [fastify.authenticate], schema: assetParamsSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
       const userId = request.currentUser!.userId;
@@ -358,6 +308,16 @@ export async function assetRoutes(fastify: FastifyInstance) {
 
       if (asset.userId !== userId && request.currentUser!.role !== 'admin') {
         return reply.status(403).send({ error: 'Forbidden' });
+      }
+
+      // Borrar objetos del storage (HLS, thumbnails y fuente original).
+      const prefixes = [`assets/${id}/`, `uploads/${asset.userId}/${id}/`];
+      for (const prefix of prefixes) {
+        try {
+          await s3Service.deletePrefix(prefix);
+        } catch (s3Error) {
+          fastify.log.warn({ s3Error, prefix }, 'No se pudieron borrar objetos de S3');
+        }
       }
 
       await fastify.db

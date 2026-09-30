@@ -21,11 +21,8 @@ async function main() {
           data: job.data,
           updateProgress: (p) => job.updateProgress(p),
         });
-      } else if (job.name === 'generate-thumbnails') {
-        throw new Error('Thumbnail job not implemented yet');
-      } else {
-        throw new Error(`Unknown job type: ${job.name}`);
       }
+      throw new Error(`Unknown job type: ${job.name}`);
     },
     {
       connection: { url: redisUrl },

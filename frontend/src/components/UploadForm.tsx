@@ -95,17 +95,17 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
     setError(null)
 
     try {
-      const { getApiUrl } = await import('@/lib/api')
-      const apiUrl = getApiUrl()
-      const { createAsset, processAsset } = await import('@/lib/api')
+      const { createAsset, processAsset, getUploadUrl, completeUpload } = await import('@/lib/api')
 
       const { data: asset, error: createError } = await createAsset(videoTitle.trim())
       if (createError || !asset) {
         throw new Error(createError || 'Failed to create asset')
       }
 
-      const formData = new FormData()
-      formData.append('file', selectedFile)
+      const { data: uploadData, error: uploadUrlError } = await getUploadUrl(asset.id, selectedFile.name, selectedFile.type)
+      if (uploadUrlError || !uploadData) {
+        throw new Error(uploadUrlError || 'Failed to get upload URL')
+      }
 
       const xhr = new XMLHttpRequest()
       xhr.upload.addEventListener('progress', (e) => {
@@ -115,8 +115,8 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
       })
 
       await new Promise<void>((resolve, reject) => {
-        xhr.open('POST', `${apiUrl}/v1/assets/${asset.id}/upload`)
-        xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('streamflow_token')}`)
+        xhr.open('PUT', uploadData.uploadUrl)
+        xhr.setRequestHeader('Content-Type', selectedFile.type)
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve()
@@ -125,11 +125,16 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
           }
         }
         xhr.onerror = () => reject(new Error('Upload failed'))
-        xhr.send(formData)
+        xhr.send(selectedFile)
       })
 
       setProgress(100)
       setStatus('complete')
+
+      const { error: completeError } = await completeUpload(asset.id)
+      if (completeError) {
+        throw new Error(completeError)
+      }
 
       const { error: processError } = await processAsset(asset.id)
       if (processError) {

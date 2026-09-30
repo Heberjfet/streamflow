@@ -1,4 +1,9 @@
 import { FastifyInstance } from 'fastify';
+import {
+  categoryCreateSchema,
+  categoryUpdateSchema,
+  categoryParamsSchema
+} from '../schemas/assets.js';
 
 interface CreateCategoryBody {
   name: string;
@@ -30,7 +35,7 @@ export async function categoryRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post<{ Body: CreateCategoryBody }>('/', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.post<{ Body: CreateCategoryBody }>('/', { onRequest: [fastify.authenticate], schema: categoryCreateSchema }, async (request, reply) => {
     try {
       const { name, description } = request.body;
       const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -52,7 +57,7 @@ export async function categoryRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get<{ Params: CategoryParams }>('/:id', async (request, reply) => {
+  fastify.get<{ Params: CategoryParams }>('/:id', { schema: categoryParamsSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
 
@@ -71,13 +76,29 @@ export async function categoryRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.put<{ Params: CategoryParams; Body: UpdateCategoryBody }>('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.put<{ Params: CategoryParams; Body: UpdateCategoryBody }>('/:id', { onRequest: [fastify.authenticate], schema: { ...categoryParamsSchema, ...categoryUpdateSchema } }, async (request, reply) => {
     try {
       const { id } = request.params;
       const { name, description } = request.body;
+      const userId = request.currentUser!.userId;
 
-      const updates: any = {};
-      if (name !== undefined) updates.name = name;
+      const existing = await fastify.db.query.categories.findFirst({
+        where: fastify.eq(fastify.schema.categories.id, id)
+      });
+
+      if (!existing) {
+        return reply.status(404).send({ error: 'Category not found' });
+      }
+
+      if (existing.userId !== userId && request.currentUser!.role !== 'admin') {
+        return reply.status(403).send({ error: 'Forbidden' });
+      }
+
+      const updates: Record<string, unknown> = {};
+      if (name !== undefined) {
+        updates.name = name;
+        updates.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      }
       if (description !== undefined) updates.description = description;
 
       const [category] = await fastify.db
@@ -86,10 +107,6 @@ export async function categoryRoutes(fastify: FastifyInstance) {
         .where(fastify.eq(fastify.schema.categories.id, id))
         .returning();
 
-      if (!category) {
-        return reply.status(404).send({ error: 'Category not found' });
-      }
-
       return reply.send(category);
     } catch (error) {
       fastify.log.error(error);
@@ -97,9 +114,22 @@ export async function categoryRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.delete<{ Params: CategoryParams }>('/:id', { onRequest: [fastify.authenticate] }, async (request, reply) => {
+  fastify.delete<{ Params: CategoryParams }>('/:id', { onRequest: [fastify.authenticate], schema: categoryParamsSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
+      const userId = request.currentUser!.userId;
+
+      const existing = await fastify.db.query.categories.findFirst({
+        where: fastify.eq(fastify.schema.categories.id, id)
+      });
+
+      if (!existing) {
+        return reply.status(404).send({ error: 'Category not found' });
+      }
+
+      if (existing.userId !== userId && request.currentUser!.role !== 'admin') {
+        return reply.status(403).send({ error: 'Forbidden' });
+      }
 
       await fastify.db
         .delete(fastify.schema.assetCategories)

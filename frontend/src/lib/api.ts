@@ -66,7 +66,7 @@ export interface Asset {
   description?: string
   categoryId?: string
   categoryIds?: string[]
-  status: 'pending' | 'uploading' | 'processing' | 'ready' | 'failed'
+  status: 'pending' | 'uploading' | 'uploaded' | 'processing' | 'ready' | 'failed'
   playbackId?: string
   thumbnailKey?: string
   hlsManifestKey?: string
@@ -125,6 +125,15 @@ export const uploadToS3 = async (uploadUrl: string, file: File): Promise<Respons
       'Content-Type': file.type,
     },
   })
+}
+
+export const completeUpload = async (assetId: string): Promise<ApiResponse<{ success: boolean; verified: boolean }>> => {
+  const res = await fetch(`${getApiUrl()}/v1/assets/${assetId}/upload-complete`, {
+    method: 'POST',
+    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  return handleResponse<{ success: boolean; verified: boolean }>(res)
 }
 
 export const processAsset = async (assetId: string): Promise<ApiResponse<void>> => {
