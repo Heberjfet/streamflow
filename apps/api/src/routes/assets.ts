@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { HeadObjectCommand } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { S3Service } from '../services/s3.service.js';
 import { AssetService } from '../services/asset.service.js';
 import { ASSET_STATUS } from '../db/schema.js';
@@ -7,8 +7,7 @@ import {
   assetListSchema,
   createAssetSchema,
   updateAssetSchema,
-  assetParamsSchema,
-  uploadUrlSchema
+  assetParamsSchema
 } from '../schemas/assets.js';
 
 interface ListQuery {
@@ -182,44 +181,7 @@ export async function assetRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post<{ Params: AssetParams; Body: { filename: string; contentType: string } }>('/:id/upload-url', { onRequest: [fastify.authenticate], schema: uploadUrlSchema }, async (request, reply) => {
-    try {
-      const { id } = request.params;
-      const { filename, contentType } = request.body;
-      const userId = request.currentUser!.userId;
-
-      const [asset] = await fastify.db.query.assets.findMany({
-        where: (assets, { eq }) => eq(assets.id, id)
-      });
-
-      if (!asset) {
-        return reply.status(404).send({ error: 'Asset not found' });
-      }
-
-      if (asset.userId !== userId) {
-        return reply.status(403).send({ error: 'Forbidden' });
-      }
-
-      const key = s3Service.getAssetPath(userId, id, filename);
-      const uploadUrl = await fastify.generateUploadUrl(key, contentType);
-
-      await fastify.db
-        .update(fastify.schema.assets)
-        .set({ sourceKey: key, status: ASSET_STATUS.UPLOADING })
-        .where(fastify.eq(fastify.schema.assets.id, id));
-
-      return reply.send({
-        uploadUrl,
-        key,
-        method: 'PUT'
-      });
-    } catch (error) {
-      fastify.log.error(error);
-      return reply.status(500).send({ error: 'Internal server error' });
-    }
-  });
-
-  fastify.post<{ Params: AssetParams }>('/:id/upload-complete', { onRequest: [fastify.authenticate], schema: assetParamsSchema }, async (request, reply) => {
+  fastify.post<{ Params: AssetParams }>('/:id/upload', { onRequest: [fastify.authenticate], schema: assetParamsSchema }, async (request, reply) => {
     try {
       const { id } = request.params;
       const userId = request.currentUser!.userId;
@@ -236,25 +198,31 @@ export async function assetRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ error: 'Forbidden' });
       }
 
-      if (!asset.sourceKey) {
-        return reply.status(400).send({ error: 'No upload pending for this asset' });
+      const data = await request.file();
+      if (!data) {
+        return reply.status(400).send({ error: 'No file uploaded' });
       }
 
-      try {
-        await fastify.s3.send(new HeadObjectCommand({
+      const key = s3Service.getAssetPath(userId, id, 'original');
+
+      // Subida en streaming: no carga el archivo completo en memoria.
+      const upload = new Upload({
+        client: fastify.s3,
+        params: {
           Bucket: fastify.s3Config.bucket,
-          Key: asset.sourceKey
-        }));
-      } catch {
-        return reply.status(400).send({ error: 'File not found in S3. Upload may have failed.' });
-      }
+          Key: key,
+          Body: data.file,
+          ContentType: data.mimetype
+        }
+      });
+      await upload.done();
 
       await fastify.db
         .update(fastify.schema.assets)
-        .set({ status: ASSET_STATUS.UPLOADED })
+        .set({ sourceKey: key, status: ASSET_STATUS.UPLOADED })
         .where(fastify.eq(fastify.schema.assets.id, id));
 
-      return reply.send({ success: true, verified: true });
+      return reply.send({ success: true, key });
     } catch (error) {
       fastify.log.error(error);
       return reply.status(500).send({ error: 'Internal server error' });

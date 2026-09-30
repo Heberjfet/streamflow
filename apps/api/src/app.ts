@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import authPlugin from './plugins/auth.js';
 import dbPlugin from './plugins/db.js';
 import redisPlugin from './plugins/redis.js';
@@ -34,6 +35,12 @@ async function buildApp() {
   await fastify.register(dbPlugin);
   await fastify.register(redisPlugin);
   await fastify.register(s3Plugin);
+
+  await fastify.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024 * 1024
+    }
+  });
 
   await fastify.register(authPlugin);
 

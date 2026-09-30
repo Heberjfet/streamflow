@@ -7,7 +7,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-streamflow}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -28,24 +27,15 @@ services:
       retries: 5
     restart: unless-stopped
 
-  minio:
-    image: minio/minio:latest
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      # Permite la subida directa desde el navegador (presigned PUT)
-      MINIO_API_CORS_ALLOW_ORIGIN: ${CORS_ORIGINS:-*}
-    command: server /data --console-address ":9001"
+  # ── Almacenamiento de objetos S3 (SeaweedFS) ──────────────────────────────
+  s3:
+    image: chrislusf/seaweedfs:latest
+    command: server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data
     volumes:
-      - minio_data:/data
+      - s3_data:/data
+      - ./docker/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
     ports:
-      - "9000:9000"
-      - "9001:9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      - "9000:8333"
     restart: unless-stopped
 
   api:
@@ -58,12 +48,12 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-streamflow}:${POSTGRES_PASSWORD:-streamflow}@postgres:5432/${POSTGRES_DB:-streamflow}
       REDIS_URL: redis://redis:6379
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://s3:8333
       S3_BROWSER_ENDPOINT: ${S3_BROWSER_ENDPOINT:-http://localhost:9000}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000}
       S3_BUCKET: ${S3_BUCKET:-streamflow}
-      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       PORT: 3001
       CORS_ORIGINS: ${CORS_ORIGINS}
@@ -72,8 +62,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      s3:
+        condition: service_started
     restart: unless-stopped
 
   worker:
@@ -83,18 +73,18 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-streamflow}:${POSTGRES_PASSWORD:-streamflow}@postgres:5432/${POSTGRES_DB:-streamflow}
       REDIS_URL: redis://redis:6379
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://s3:8333
       S3_BUCKET: ${S3_BUCKET:-streamflow}
-      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       WORKER_CONCURRENCY: 2
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      s3:
+        condition: service_started
     restart: unless-stopped
 
   frontend:
@@ -125,21 +115,22 @@ services:
     profiles:
       - production
 
+  # ── Bootstrap del bucket ──────────────────────────────────────────────────
   createbuckets:
-    image: minio/mc
+    image: amazon/aws-cli:latest
     depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      sleep 5;
-      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
-      mc mb myminio/${S3_BUCKET:-streamflow} --ignore-existing;
-      mc anonymous set public myminio/${S3_BUCKET:-streamflow};
-      exit 0;
-      "
+      - s3
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
+      AWS_DEFAULT_REGION: us-east-1
+      S3_ENDPOINT_INTERNAL: http://s3:8333
+      S3_BUCKET: ${S3_BUCKET:-streamflow}
+    volumes:
+      - ./docker/createbuckets.sh:/createbuckets.sh:ro
+    entrypoint: ["/bin/sh", "/createbuckets.sh"]
     restart: "no"
 
 volumes:
   postgres_data:
-  minio_data:
+  s3_data:

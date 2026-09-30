@@ -95,46 +95,17 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
     setError(null)
 
     try {
-      const { createAsset, processAsset, getUploadUrl, completeUpload } = await import('@/lib/api')
+      const { createAsset, processAsset, uploadAsset } = await import('@/lib/api')
 
       const { data: asset, error: createError } = await createAsset(videoTitle.trim())
       if (createError || !asset) {
         throw new Error(createError || 'Failed to create asset')
       }
 
-      const { data: uploadData, error: uploadUrlError } = await getUploadUrl(asset.id, selectedFile.name, selectedFile.type)
-      if (uploadUrlError || !uploadData) {
-        throw new Error(uploadUrlError || 'Failed to get upload URL')
-      }
-
-      const xhr = new XMLHttpRequest()
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          setProgress(Math.round((e.loaded / e.total) * 100))
-        }
-      })
-
-      await new Promise<void>((resolve, reject) => {
-        xhr.open('PUT', uploadData.uploadUrl)
-        xhr.setRequestHeader('Content-Type', selectedFile.type)
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve()
-          } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`))
-          }
-        }
-        xhr.onerror = () => reject(new Error('Upload failed'))
-        xhr.send(selectedFile)
-      })
+      await uploadAsset(asset.id, selectedFile, setProgress)
 
       setProgress(100)
       setStatus('complete')
-
-      const { error: completeError } = await completeUpload(asset.id)
-      if (completeError) {
-        throw new Error(completeError)
-      }
 
       const { error: processError } = await processAsset(asset.id)
       if (processError) {

@@ -27,7 +27,7 @@ StreamFlow v2 es una plataforma de streaming de video que permite subir, transco
 | ORM | Drizzle |
 | Database | PostgreSQL 16 |
 | Queue | BullMQ + Redis |
-| Storage | MinIO (S3-compatible) |
+| Storage | SeaweedFS (S3-compatible) |
 | Transcoding | FFmpeg + fluent-ffmpeg |
 | Player | HLS.js |
 | Frontend | Next.js 15 |
@@ -60,7 +60,6 @@ docker compose logs -f
 |----------|-----|
 | Frontend | `http://localhost:3000` |
 | API | `http://localhost:3001` |
-| MinIO Console | `http://localhost:9001` |
 
 ### Desarrollo Local (sin Docker)
 
@@ -155,7 +154,7 @@ docker compose --profile production up -d --build nginx
               └──────────┘ └─────────┘ └────┬─────┘
                                             │
                                       ┌─────▼────┐
-                                      │  MinIO   │
+                                      │SeaweedFS │
                                       │   (S3)   │
                                       └──────────┘
 ```
@@ -173,8 +172,8 @@ REDIS_URL=redis://redis:6379
 # JWT
 JWT_SECRET=change-this-in-production
 
-# S3 / MinIO
-S3_ENDPOINT=http://minio:9000
+# S3 (SeaweedFS)
+S3_ENDPOINT=http://s3:8333
 S3_BUCKET=streamflow
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
@@ -211,8 +210,7 @@ NEXT_PUBLIC_S3_URL=https://flow.tudominio.com/s3
 | GET | `/v1/assets/:id` | Detalle de asset |
 | PUT | `/v1/assets/:id` | Actualizar asset |
 | DELETE | `/v1/assets/:id` | Eliminar asset |
-| POST | `/v1/assets/:id/upload-url` | Obtener URL firmada para subir |
-| POST | `/v1/assets/:id/upload-complete` | Confirmar subida |
+| POST | `/v1/assets/:id/upload` | Subir archivo (multipart) |
 | POST | `/v1/assets/:id/process` | Iniciar transcoding |
 
 ### Catálogos
@@ -256,17 +254,10 @@ curl -X POST http://localhost:3001/v1/assets \
   -H "Content-Type: application/json" \
   -d '{"title": "Mi Video"}'
 
-# 2. Obtener URL firmada para subir el archivo directamente a S3
-curl -X POST http://localhost:3001/v1/assets/ASSET_ID/upload-url \
+# 2. Subir archivo (multipart, en streaming hacia S3)
+curl -X POST http://localhost:3001/v1/assets/ASSET_ID/upload \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"filename":"video.mp4","contentType":"video/mp4"}'
-# → responde { uploadUrl, key }. Subir el archivo con:
-curl -X PUT "<uploadUrl>" -H "Content-Type: video/mp4" --upload-file video.mp4
-
-# 2b. Confirmar la subida
-curl -X POST http://localhost:3001/v1/assets/ASSET_ID/upload-complete \
-  -H "Authorization: Bearer $TOKEN"
+  -F "file=@video.mp4"
 
 # 3. Iniciar transcoding
 curl -X POST http://localhost:3001/v1/assets/ASSET_ID/process \

@@ -7,7 +7,7 @@ streamflow-v2/
 ├── apps/api/          # Fastify API (Node.js, ESM, TypeScript)
 ├── worker/            # BullMQ job worker (FFmpeg transcoding)
 ├── frontend/          # Next.js 15 frontend
-└── docker-compose.yml # Postgres 16, Redis, MinIO, API, Worker, Frontend
+└── docker-compose.yml # Postgres 16, Redis, SeaweedFS, API, Worker, Frontend
 ```
 
 Note: the `packages/*` workspace was removed because that directory does not exist. Database scripts run against `apps/api`.
@@ -44,7 +44,7 @@ npm run typecheck      # all workspaces (no test command exists at root)
 - **Worker entrypoint**: `worker/src/index.ts` — BullMQ worker; processes `transcode` and `generate-thumbnails` jobs
 - **ORM**: Drizzle ORM, schema in `apps/api/src/db/schema.ts` (NOT init.sql — init.sql is raw SQL for reference only)
 - **Queue**: BullMQ + Redis; `VIDEO_QUEUE_NAME` constant from `worker/src/types`
-- **Storage**: MinIO (S3-compatible); upload via presigned URLs, not through the API
+- **Storage**: SeaweedFS (S3-compatible); upload via the API (streaming), not presigned URLs (SeaweedFS presigned PUT is buggy).
 - **Database**: PostgreSQL 16 via `docker-compose.yml`; `DATABASE_URL` env var required
 
 ## DB Schema Management

@@ -6,8 +6,7 @@ import {
   getAsset as apiGetAsset,
   createAsset as apiCreateAsset,
   deleteAsset as apiDeleteAsset,
-  getUploadUrl as apiGetUploadUrl,
-  completeUpload as apiCompleteUpload,
+  uploadAsset,
   processAsset as apiProcessAsset,
   type Asset,
 } from '@/lib/api'
@@ -89,36 +88,8 @@ export function useAssets(): UseAssetsReturn {
 
   const uploadVideo = useCallback(
     async (assetId: string, file: File, onProgress?: (progress: number) => void): Promise<boolean> => {
-      const { data: uploadData, error: uploadUrlError } = await apiGetUploadUrl(assetId, file.name, file.type)
-      if (uploadUrlError || !uploadData) {
-        return false
-      }
-
       try {
-        const xhr = new XMLHttpRequest()
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable && onProgress) {
-            onProgress(Math.round((e.loaded / e.total) * 100))
-          }
-        })
-
-        await new Promise<void>((resolve, reject) => {
-          xhr.open('PUT', uploadData.uploadUrl)
-          xhr.setRequestHeader('Content-Type', file.type)
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve()
-            } else {
-              reject(new Error(`Upload failed with status ${xhr.status}`))
-            }
-          }
-          xhr.onerror = () => reject(new Error('Upload failed'))
-          xhr.send(file)
-        })
-
-        const { error: completeError } = await apiCompleteUpload(assetId)
-        if (completeError) return false
-
+        await uploadAsset(assetId, file, onProgress)
         return true
       } catch {
         return false

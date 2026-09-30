@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema.js';
 import { registerSchema, loginSchema } from '../schemas/assets.js';
@@ -17,7 +17,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.status(409).send({ error: 'Email already registered' });
       }
 
-      const passwordHash = await bcrypt.hash(password, 12);
+      const passwordHash = await bcrypt.hash(password, 10);
 
       const allUsers = await fastify.db.query.users.findMany();
       const isFirstUser = allUsers.length === 0;

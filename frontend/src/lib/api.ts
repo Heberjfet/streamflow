@@ -108,32 +108,28 @@ export const deleteAsset = async (assetId: string): Promise<ApiResponse<void>> =
   return handleResponse<void>(res)
 }
 
-export const getUploadUrl = async (assetId: string, filename: string, contentType: string): Promise<ApiResponse<{ uploadUrl: string; key: string }>> => {
-  const res = await fetch(`${getApiUrl()}/v1/assets/${assetId}/upload-url`, {
-    method: 'POST',
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename, contentType }),
+export const uploadAsset = (assetId: string, file: File, onProgress?: (p: number) => void): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    })
+    xhr.open('POST', `${getApiUrl()}/v1/assets/${assetId}/upload`)
+    xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('streamflow_token')}`)
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve()
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Upload failed'))
+    const formData = new FormData()
+    formData.append('file', file)
+    xhr.send(formData)
   })
-  return handleResponse<{ uploadUrl: string; key: string }>(res)
-}
-
-export const uploadToS3 = async (uploadUrl: string, file: File): Promise<Response> => {
-  return fetch(uploadUrl, {
-    method: 'PUT',
-    body: file,
-    headers: {
-      'Content-Type': file.type,
-    },
-  })
-}
-
-export const completeUpload = async (assetId: string): Promise<ApiResponse<{ success: boolean; verified: boolean }>> => {
-  const res = await fetch(`${getApiUrl()}/v1/assets/${assetId}/upload-complete`, {
-    method: 'POST',
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
-    body: '{}',
-  })
-  return handleResponse<{ success: boolean; verified: boolean }>(res)
 }
 
 export const processAsset = async (assetId: string): Promise<ApiResponse<void>> => {

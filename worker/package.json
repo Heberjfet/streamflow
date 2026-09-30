@@ -14,8 +14,8 @@
     "bullmq": "^5.0.0",
     "ioredis": "^5.3.2",
     "fluent-ffmpeg": "^2.1.2",
-    "@aws-sdk/client-s3": "^3.500.0",
-    "@aws-sdk/s3-request-presigner": "^3.500.0",
+    "@aws-sdk/client-s3": "3.1143.0",
+    "@aws-sdk/s3-request-presigner": "3.1143.0",
     "drizzle-orm": "^0.36.0",
     "postgres": "^3.4.0"
   },
