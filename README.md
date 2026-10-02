@@ -32,34 +32,59 @@ StreamFlow v2 es una plataforma de streaming de video que permite subir, transco
 | Player | HLS.js |
 | Frontend | Next.js 15 |
 
-## Quick Start
+## Quick Start (Un Solo Comando)
 
 ### Prerrequisitos
 
 - Docker & Docker Compose
-- Node.js 20 LTS (opcional, para desarrollo local)
+- Node.js 20 LTS (opcional, solo para desarrollo sin Docker)
 
-### Desarrollo Local
+### 🚀 Despliegue Inmediato
 
+StreamFlow v2 incluye scripts automatizados que verifican Docker, generan el `.env` con contraseñas criptográficas seguras, compilan las imágenes multi-stage y levantan el stack completo en orden:
+
+**En Linux / macOS:**
 ```bash
-# Clonar repositorio
 git clone https://github.com/Heberjfet/streamflow-v2.git
 cd streamflow-v2
-
-# Copiar variables de entorno
-cp .env.example .env
-
-# Iniciar servicios
-docker compose up -d
-
-# Ver logs
-docker compose logs -f
+chmod +x ./install.sh
+./install.sh
 ```
 
-| Servicio | URL |
-|----------|-----|
-| Frontend | `http://localhost:3000` |
-| API | `http://localhost:3001` |
+**En Windows (PowerShell):**
+```powershell
+git clone https://github.com/Heberjfet/streamflow-v2.git
+cd streamflow-v2
+.\streamflow.ps1 up
+```
+
+**Con Make:**
+```bash
+make up
+```
+
+Una vez levantado:
+| Servicio | URL | Descripción |
+|---|---|---|
+| **Frontend** | `http://localhost:3000` | Interfaz web Next.js 15 |
+| **API** | `http://localhost:3001` | API Fastify + healthcheck |
+| **Storage (Filer UI)** | `http://localhost:8888` | Explorador de archivos SeaweedFS |
+| **S3 Endpoint** | `http://localhost:9000` | Gateway S3 |
+
+### 🛠️ Comandos de Gestión
+
+Tanto `./streamflow.sh` (Linux/macOS) como `.\streamflow.ps1` (Windows) ofrecen comandos unificados:
+
+```bash
+./streamflow.sh up            # Levantar stack local
+./streamflow.sh up --prod     # Levantar en producción (con nginx y SSL)
+./streamflow.sh down          # Detener servicios
+./streamflow.sh logs          # Ver logs en tiempo real
+./streamflow.sh logs api      # Logs de un servicio específico
+./streamflow.sh ps            # Estado de los contenedores
+./streamflow.sh migrate       # Ejecutar migraciones Drizzle
+./streamflow.sh reset         # Detener y reiniciar volúmenes (base de datos y S3)
+```
 
 ### Desarrollo Local (sin Docker)
 

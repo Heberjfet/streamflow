@@ -22,9 +22,13 @@
     "db:generate": "npm run db:generate --workspace=apps/api",
     "db:migrate": "npm run db:migrate --workspace=apps/api",
     "db:push": "npm run db:push --workspace=apps/api",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose --profile production down",
     "docker:logs": "docker compose logs -f",
+    "streamflow:up": "docker compose up -d --build",
+    "streamflow:down": "docker compose --profile production down",
+    "streamflow:logs": "docker compose logs -f",
+    "streamflow:reset": "docker compose --profile production down -v",
     "clean": "node -e \"const {rmSync}=require('node:fs'); for (const p of ['node_modules','apps/api/node_modules','worker/node_modules','frontend/node_modules']) rmSync(p,{recursive:true,force:true})\""
   },
   "keywords": [

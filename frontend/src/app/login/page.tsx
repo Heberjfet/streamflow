@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -50,7 +50,7 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
 
 type AuthMode = 'login' | 'register' | 'forgot'
 
-export default function AuthPage() {
+function AuthPageContent() {
   const searchParams = useSearchParams()
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login'
   const [mode, setMode] = useState<AuthMode>(initialMode)
@@ -498,5 +498,13 @@ export default function AuthPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--background)]" />}>
+      <AuthPageContent />
+    </Suspense>
   )
 }

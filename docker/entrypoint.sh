@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "Aplicando esquema de base de datos..."
-cd /app/apps/api && npx drizzle-kit push --force
+echo "==> [StreamFlow API] Aplicando migraciones de base de datos..."
+node /app/apps/api/dist/db/migrate.js
 
-echo "Iniciando API..."
-exec npx tsx src/app.ts
+echo "==> [StreamFlow API] Iniciando servidor..."
+exec "$@"

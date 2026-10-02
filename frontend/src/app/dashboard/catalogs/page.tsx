@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { getCategories, createCategory, deleteCategory, Category, getAssets, updateAsset, Asset } from '@/lib/api'
 import { getS3Url } from '@/lib/s3'
 import { VideoCard } from '@/components/VideoCard'
 
-export default function CatalogsPage() {
+function CatalogsPageContent() {
     const searchParams = useSearchParams()
     const [catalogs, setCatalogs] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
@@ -396,5 +396,13 @@ export default function CatalogsPage() {
 
             {DeleteConfirmationModal}
         </div>
+    )
+}
+
+export default function CatalogsPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-white/40">Cargando...</div>}>
+            <CatalogsPageContent />
+        </Suspense>
     )
 }
