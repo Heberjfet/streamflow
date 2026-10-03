@@ -188,10 +188,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ ...settings, availableEncoders: AVAILABLE_ENCODERS });
   });
 
-  fastify.put<{ Body: { transcodeProfiles?: unknown[]; allowedExtensions?: string[]; encoder?: string; concurrency?: number; ffmpegThreads?: number } }>('/settings', async (request, reply) => {
+  fastify.put<{ Body: { transcodeProfiles?: unknown[]; allowedExtensions?: string[]; encoder?: string; concurrency?: number; ffmpegThreads?: number; allowRegistration?: boolean } }>('/settings', async (request, reply) => {
     try {
       const settings = await getSettings(fastify);
-      const { transcodeProfiles, allowedExtensions, encoder, concurrency, ffmpegThreads } = request.body;
+      const { transcodeProfiles, allowedExtensions, encoder, concurrency, ffmpegThreads, allowRegistration } = request.body;
 
       const updates: Record<string, unknown> = { updatedAt: new Date() };
       if (transcodeProfiles !== undefined) updates.transcodeProfiles = transcodeProfiles;
@@ -199,6 +199,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       if (encoder !== undefined) updates.encoder = encoder;
       if (concurrency !== undefined) updates.concurrency = concurrency;
       if (ffmpegThreads !== undefined) updates.ffmpegThreads = ffmpegThreads;
+      if (allowRegistration !== undefined) updates.allowRegistration = allowRegistration;
 
       const [updated] = await fastify.db
         .update(fastify.schema.settings)

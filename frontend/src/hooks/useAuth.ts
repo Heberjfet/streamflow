@@ -69,7 +69,7 @@ export function useAuth(): UseAuthReturn {
   const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await apiLogin(email, password)
     if (error || !data) {
-      return { success: false, error: error || 'Login failed' }
+      return { success: false, error: error || 'Error al iniciar sesión' }
     }
     localStorage.setItem('streamflow_token', data.token)
     const decoded = decodeJwt(data.token)
@@ -87,7 +87,7 @@ export function useAuth(): UseAuthReturn {
   const register = useCallback(async (email: string, password: string, name: string) => {
     const { data, error } = await apiRegister(email, password, name)
     if (error || !data) {
-      return { success: false, error: error || 'Registration failed' }
+      return { success: false, error: error || 'Error al registrar la cuenta' }
     }
     localStorage.setItem('streamflow_token', data.token)
     const decoded = decodeJwt(data.token)

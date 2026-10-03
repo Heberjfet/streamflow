@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import Link from 'next/link'
+import { AdminRegistrationAlert } from '@/components/AdminRegistrationAlert'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading, user, logout } = useAuth()
@@ -136,6 +137,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <main className="flex-1 overflow-y-auto bg-[#050505] selection:bg-purple-500/30">
         <div className="p-10 lg:p-16 max-w-7xl mx-auto">
+          <AdminRegistrationAlert />
           {children}
         </div>
       </main>

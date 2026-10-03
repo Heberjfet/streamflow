@@ -30,6 +30,7 @@ export default function SettingsPage() {
           encoder: s.data.encoder,
           concurrency: s.data.concurrency ?? null,
           ffmpegThreads: s.data.ffmpegThreads ?? null,
+          allowRegistration: s.data.allowRegistration ?? true,
         })
         setEncoders(s.data.availableEncoders || [])
       } else if (s.error) {
@@ -115,6 +116,51 @@ export default function SettingsPage() {
 
       {message && <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm">{message}</div>}
       {error && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>}
+
+      {/* Acceso y Registro */}
+      <section className="bg-white/[0.02] p-8 rounded-[2rem] border border-white/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h2 className="text-[11px] font-bold text-white/30 uppercase tracking-[0.2em]">Acceso y Registro</h2>
+            <h3 className="text-base font-semibold text-white">Registro público de nuevos usuarios</h3>
+            <p className="text-xs text-white/40 max-w-2xl leading-relaxed">
+              Permite que cualquier persona con la URL de la plataforma cree una cuenta. Si se desactiva,
+              el registro se bloquea y solo podrán acceder las cuentas creadas previamente o mediante variables de entorno.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 shrink-0">
+            <span
+              className={`text-xs font-semibold px-3 py-1 rounded-full border ${
+                settings.allowRegistration !== false
+                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                  : 'bg-zinc-500/15 border-zinc-500/30 text-zinc-400'
+              }`}
+            >
+              {settings.allowRegistration !== false ? 'Público (Abierto)' : 'Privado (Cerrado)'}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.allowRegistration !== false}
+              onClick={() =>
+                setSettings({
+                  ...settings,
+                  allowRegistration: !(settings.allowRegistration ?? true),
+                })
+              }
+              className={`relative inline-flex h-7 w-13 items-center rounded-full transition-colors focus:outline-none ${
+                settings.allowRegistration !== false ? 'bg-purple-600' : 'bg-zinc-800 border border-white/10'
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                  settings.allowRegistration !== false ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Calidades */}
       <section className="bg-white/[0.02] p-8 rounded-[2rem] border border-white/5">

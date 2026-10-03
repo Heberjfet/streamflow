@@ -60,6 +60,7 @@ export const settings = pgTable('settings', {
   encoder: varchar('encoder', { length: 50 }).notNull().default('libx264'),
   concurrency: integer('concurrency'),
   ffmpegThreads: integer('ffmpeg_threads'),
+  allowRegistration: boolean('allow_registration').notNull().default(true),
   updatedAt: timestamp('updated_at').defaultNow()
 });
 

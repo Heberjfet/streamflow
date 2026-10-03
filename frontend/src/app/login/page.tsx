@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
-import { login, register } from '@/lib/api'
+import { login, register, getPublicSettings } from '@/lib/api'
 import { TVStatic } from '@/components/TVStatic'
 import { TermsModal } from '@/components/TermsModal'
 
@@ -50,6 +50,24 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
 
 type AuthMode = 'login' | 'register' | 'forgot'
 
+const formatAuthError = (err?: string): string => {
+  if (!err) return 'Error desconocido'
+  const lower = err.toLowerCase()
+  if (lower.includes('invalid credentials') || lower.includes('invalid') || lower.includes('credenciales')) {
+    return 'Correo o contraseña incorrectos'
+  }
+  if (lower.includes('already registered') || lower.includes('ya está registrado')) {
+    return 'Este correo electrónico ya está registrado'
+  }
+  if (lower.includes('deshabilitado')) {
+    return 'El registro de nuevos usuarios está deshabilitado en esta instancia'
+  }
+  if (lower.includes('internal server error') || lower.includes('request failed')) {
+    return 'Error del servidor. Por favor, inténtalo más tarde.'
+  }
+  return err
+}
+
 function AuthPageContent() {
   const searchParams = useSearchParams()
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login'
@@ -77,6 +95,20 @@ function AuthPageContent() {
   const [forgotSuccess, setForgotSuccess] = useState(false)
   const [forgotLoading, setForgotLoading] = useState(false)
 
+  const [allowRegistration, setAllowRegistration] = useState<boolean | null>(null)
+  const [hasUsers, setHasUsers] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    getPublicSettings()
+      .then((res) => {
+        if (res.data) {
+          setAllowRegistration(res.data.allowRegistration)
+          setHasUsers(res.data.hasUsers)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const handleModeChange = (newMode: AuthMode) => {
     if (newMode === mode || transitioning) return
     setTransitioning(true)
@@ -96,7 +128,7 @@ function AuthPageContent() {
     try {
       const result = await login(loginEmail, loginPassword)
       if (result.error) {
-        setLoginError(result.error)
+        setLoginError(formatAuthError(result.error))
         setLoginLoading(false)
         return
       }
@@ -134,7 +166,7 @@ function AuthPageContent() {
     try {
       const result = await register(registerEmail, registerPassword, registerName)
       if (result.error) {
-        setRegisterError(result.error)
+        setRegisterError(formatAuthError(result.error))
         setRegisterLoading(false)
         return
       }
@@ -155,14 +187,16 @@ function AuthPageContent() {
   return (
     <div className="min-h-screen bg-[var(--background)] relative overflow-hidden">
       <TVStatic opacity={0.3} />
-      <button
-        onClick={() => router.push('/')}
-        className="fixed top-6 left-6 z-50 flex items-center justify-center w-11 h-11 rounded-xl bg-[var(--color-bg-elevated)]/80 backdrop-blur-sm border border-[var(--color-border)]/50 text-[var(--color-text-secondary)] hover:text-white hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-bg-elevated)] transition-all duration-300 group"
-      >
-        <svg className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-        </svg>
-      </button>
+      {!hasUsers && (
+        <button
+          onClick={() => router.push('/')}
+          className="fixed top-6 left-6 z-50 flex items-center justify-center w-11 h-11 rounded-xl bg-[var(--color-bg-elevated)]/80 backdrop-blur-sm border border-[var(--color-border)]/50 text-[var(--color-text-secondary)] hover:text-white hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-bg-elevated)] transition-all duration-300 group"
+        >
+          <svg className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+        </button>
+      )}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-[var(--color-accent)] rounded-full blur-[150px] opacity-10 animate-glow-pulse" />
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-[var(--color-accent-hover)] rounded-full blur-[150px] opacity-10 animate-glow-pulse delay-300" />
@@ -286,15 +320,24 @@ function AuthPageContent() {
                       Iniciar Sesión
                     </Button>
 
-                    <p className="text-center text-sm text-[var(--color-text-secondary)]">
-                      ¿No tienes cuenta?{' '}
-                      <button type="button" onClick={() => handleModeChange('register')} className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-semibold transition-colors duration-300 inline-flex items-center gap-1 group">
-                        Crea una
-                        <svg className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    {allowRegistration !== false ? (
+                      <p className="text-center text-sm text-[var(--color-text-secondary)]">
+                        ¿No tienes cuenta?{' '}
+                        <button type="button" onClick={() => handleModeChange('register')} className="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-semibold transition-colors duration-300 inline-flex items-center gap-1 group">
+                          Crea una
+                          <svg className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                          </svg>
+                        </button>
+                      </p>
+                    ) : (
+                      <p className="text-center text-xs text-white/30 pt-2 flex items-center justify-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
-                      </button>
-                    </p>
+                        Registro público deshabilitado
+                      </p>
+                    )}
                   </form>
                 ) : mode === 'forgot' ? (
                   <form onSubmit={(e) => { e.preventDefault(); setForgotSuccess(true) }} className="space-y-5 auth-form-rainbow">
@@ -366,6 +409,30 @@ function AuthPageContent() {
                       </>
                     )}
                   </form>
+                ) : allowRegistration === false ? (
+                  <div className="py-6 text-center space-y-5 animate-fade-in">
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.2)]">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">Registro Deshabilitado</h3>
+                      <p className="text-sm text-[var(--color-text-secondary)] max-w-xs mx-auto leading-relaxed">
+                        El registro público de nuevos usuarios está deshabilitado por el administrador en esta instancia.
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <Button
+                        type="button"
+                        onClick={() => handleModeChange('login')}
+                        className="w-full bg-[length:200%_200%] animate-gradient-shift"
+                        size="lg"
+                      >
+                        Volver a Iniciar Sesión
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <form onSubmit={handleRegister} className="space-y-5 auth-form-rainbow">
                     {registerError && (

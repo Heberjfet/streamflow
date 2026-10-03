@@ -12,7 +12,8 @@ export async function getSettings(fastify: FastifyInstance): Promise<Settings> {
       id: 'default',
       transcodeProfiles: DEFAULT_TRANSCODE_PROFILES,
       allowedExtensions: DEFAULT_ALLOWED_EXTENSIONS,
-      encoder: 'libx264'
+      encoder: 'libx264',
+      allowRegistration: true
     })
     .returning();
 

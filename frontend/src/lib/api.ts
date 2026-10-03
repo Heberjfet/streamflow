@@ -353,6 +353,7 @@ export interface AppSettings {
   encoder: string
   concurrency?: number | null
   ffmpegThreads?: number | null
+  allowRegistration?: boolean
 }
 
 export interface SystemInfo {
@@ -362,6 +363,11 @@ export interface SystemInfo {
   freeMemGB: number
   platform: string
   availableEncoders: EncoderOption[]
+}
+
+export const getPublicSettings = async (): Promise<ApiResponse<{ allowRegistration: boolean; hasUsers: boolean }>> => {
+  const res = await fetch(`${getApiUrl()}/v1/settings/public`)
+  return handleResponse<{ allowRegistration: boolean; hasUsers: boolean }>(res)
 }
 
 export const getSettings = async (): Promise<ApiResponse<AppSettings>> => {

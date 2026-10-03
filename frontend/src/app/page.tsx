@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
 import { Navbar } from '@/components/Navbar'
+import { getPublicSettings } from '@/lib/api'
 
 const features = [
   {
@@ -21,15 +22,46 @@ const features = [
   },
 ]
 
-export default function HomePage() {
+function HomeContent() {
   const { isAuthenticated, loading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const forceLanding = searchParams.get('landing') === '1'
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    if (!loading && isAuthenticated) {
-      router.push('/dashboard')
+    if (loading) return
+
+    if (isAuthenticated) {
+      router.replace('/dashboard')
+      return
     }
-  }, [isAuthenticated, loading, router])
+
+    if (forceLanding) {
+      setChecking(false)
+      return
+    }
+
+    getPublicSettings()
+      .then((res) => {
+        if (res.data?.hasUsers) {
+          router.replace('/login')
+        } else {
+          setChecking(false)
+        }
+      })
+      .catch(() => {
+        router.replace('/login')
+      })
+  }, [isAuthenticated, loading, router, forceLanding])
+
+  if (checking || (loading && !forceLanding)) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#050505] text-white">
@@ -225,5 +257,19 @@ export default function HomePage() {
         </div>
       </footer>
     </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+          <div className="w-10 h-10 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   )
 }

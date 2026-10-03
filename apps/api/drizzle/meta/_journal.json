@@ -8,6 +8,13 @@
       "when": 1790745256065,
       "tag": "0000_majestic_madame_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790991715268,
+      "tag": "0001_brave_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema.js';
 import { registerSchema, loginSchema } from '../schemas/assets.js';
+import { getSettings } from '../services/settings.service.js';
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: { email: string; password: string; name: string } }>('/register', { schema: registerSchema }, async (request, reply) => {
@@ -14,13 +15,18 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (existingUser) {
-        return reply.status(409).send({ error: 'Email already registered' });
+        return reply.status(409).send({ error: 'El correo electrónico ya está registrado' });
       }
-
-      const passwordHash = await bcrypt.hash(password, 10);
 
       const allUsers = await fastify.db.query.users.findMany();
       const isFirstUser = allUsers.length === 0;
+
+      const settings = await getSettings(fastify);
+      if (!isFirstUser && !settings.allowRegistration) {
+        return reply.status(403).send({ error: 'El registro público de nuevos usuarios está deshabilitado en esta instancia.' });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
       const role = isFirstUser ? 'admin' : 'viewer';
 
       const [user] = await fastify.db
@@ -48,7 +54,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({ error: 'Internal server error' });
+      return reply.status(500).send({ error: 'Error interno del servidor' });
     }
   });
 
@@ -61,12 +67,12 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (!user || !user.passwordHash) {
-        return reply.status(401).send({ error: 'Invalid credentials' });
+        return reply.status(401).send({ error: 'Correo o contraseña incorrectos' });
       }
 
       const isValid = await bcrypt.compare(password, user.passwordHash);
       if (!isValid) {
-        return reply.status(401).send({ error: 'Invalid credentials' });
+        return reply.status(401).send({ error: 'Correo o contraseña incorrectos' });
       }
 
       const token = fastify.jwt.sign({
@@ -87,7 +93,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({ error: 'Internal server error' });
+      return reply.status(500).send({ error: 'Error interno del servidor' });
     }
   });
 

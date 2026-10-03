@@ -51,7 +51,7 @@ export default function VideoPlayerPage() {
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Video not found</h2>
           <p className="text-[var(--color-text-secondary)] mb-6">{error}</p>
-          <Link href="/">
+          <Link href="/dashboard">
             <Button>Go Home</Button>
           </Link>
         </div>
@@ -72,7 +72,7 @@ export default function VideoPlayerPage() {
           playbackId={playback.playbackId}
         />
         <div className="mt-4 text-center">
-          <Link href="/" className="text-[var(--color-text-muted)] hover:text-white transition-colors text-sm">
+          <Link href="/dashboard" className="text-[var(--color-text-muted)] hover:text-white transition-colors text-sm">
             StreamFlow
           </Link>
         </div>

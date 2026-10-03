@@ -45,7 +45,7 @@ export function Navbar() {
       <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-8">
         <div className={`flex items-center justify-between transition-all duration-500 ${scrolled ? 'h-16' : 'h-24'}`}>
 
-          <Link href="/" className="group flex items-center gap-3.5 z-50">
+          <Link href={isAuthenticated ? '/dashboard' : '/login'} className="group flex items-center gap-3.5 z-50">
             <div className={`relative transition-all duration-500 ${scrolled ? 'w-8 h-8' : 'w-10 h-10'}`}>
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-fuchsia-500 rounded-xl rotate-3 group-hover:rotate-6 transition-transform duration-500 shadow-lg shadow-purple-500/40" />
               <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-fuchsia-600 rounded-xl flex items-center justify-center">
