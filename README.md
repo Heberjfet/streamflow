@@ -1,10 +1,10 @@
-# StreamFlow v2
+# StreamFlow
 
 **Plataforma de Video Self-Hosted para streaming personal**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-StreamFlow v2 es una plataforma de streaming de video que permite subir, transcodificar y transmitir contenido en HLS adaptativo desde tu propia infraestructura.
+StreamFlow es una plataforma de streaming de video que permite subir, transcodificar y transmitir contenido en HLS adaptativo desde tu propia infraestructura.
 
 ## Características
 
@@ -41,20 +41,20 @@ StreamFlow v2 es una plataforma de streaming de video que permite subir, transco
 
 ### 🚀 Despliegue Inmediato
 
-StreamFlow v2 incluye scripts automatizados que verifican Docker, generan el `.env` con contraseñas criptográficas seguras, compilan las imágenes multi-stage y levantan el stack completo en orden:
+StreamFlow incluye scripts automatizados que verifican Docker, generan el `.env` con contraseñas criptográficas seguras, compilan las imágenes multi-stage y levantan el stack completo en orden:
 
 **En Linux / macOS:**
 ```bash
-git clone https://github.com/Heberjfet/streamflow-v2.git
-cd streamflow-v2
+git clone https://github.com/Heberjfet/streamflow.git
+cd streamflow
 chmod +x ./install.sh
 ./install.sh
 ```
 
 **En Windows (PowerShell):**
 ```powershell
-git clone https://github.com/Heberjfet/streamflow-v2.git
-cd streamflow-v2
+git clone https://github.com/Heberjfet/streamflow.git
+cd streamflow
 .\streamflow.ps1 up
 ```
 

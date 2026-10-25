@@ -1,9 +1,9 @@
-# StreamFlow v2 — Agent Guide
+# StreamFlow — Agent Guide
 
 ## Workspace Structure
 
 ```
-streamflow-v2/
+streamflow/
 ├── apps/api/          # Fastify API (Node.js, ESM, TypeScript)
 ├── worker/            # BullMQ job worker (FFmpeg transcoding)
 ├── frontend/          # Next.js 15 frontend

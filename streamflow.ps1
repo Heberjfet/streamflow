@@ -1,5 +1,5 @@
 # ==============================================================================
-# StreamFlow v2 — Script de Gestión y Despliegue para PowerShell (Windows)
+# StreamFlow — Script de Gestión y Despliegue para PowerShell (Windows)
 # ==============================================================================
 param (
     [Parameter(Position = 0)]
@@ -97,11 +97,11 @@ switch ($Command.ToLower()) {
         if ($Prod) {
             $profileArgs += "--profile", "production"
         }
-        Write-Host "==> Construyendo y levantando servicios de StreamFlow v2..." -ForegroundColor Cyan
+        Write-Host "==> Construyendo y levantando servicios de StreamFlow..." -ForegroundColor Cyan
         & docker compose @profileArgs up -d --build
 
         Write-Host "====================================================" -ForegroundColor Green
-        Write-Host "🚀 StreamFlow v2 está levantado y en ejecución." -ForegroundColor Green
+        Write-Host "🚀 StreamFlow está levantado y en ejecución." -ForegroundColor Green
         Write-Host "====================================================" -ForegroundColor Green
         Write-Host "  🌐 Frontend:  http://localhost:3000" -ForegroundColor Cyan
         Write-Host "  🔌 API:       http://localhost:3001" -ForegroundColor Cyan

@@ -1,4 +1,4 @@
--- StreamFlow v2 - Database Schema
+-- StreamFlow - Database Schema
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (

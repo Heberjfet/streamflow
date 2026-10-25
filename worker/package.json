@@ -1,7 +1,7 @@
 {
   "name": "streamflow-worker",
   "version": "1.0.0",
-  "description": "StreamFlow v2 video processing worker with BullMQ and FFmpeg",
+  "description": "StreamFlow video processing worker with BullMQ and FFmpeg",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

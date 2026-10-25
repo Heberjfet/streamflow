@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# StreamFlow v2 — Script de Gestión y Despliegue en Un Solo Comando
+# StreamFlow — Script de Gestión y Despliegue en Un Solo Comando
 # ==============================================================================
 set -euo pipefail
 
@@ -102,12 +102,12 @@ cmd_up() {
     fi
   done
 
-  echo -e "${BLUE}==> Construyendo y levantando servicios de StreamFlow v2...${NC}"
+  echo -e "${BLUE}==> Construyendo y levantando servicios de StreamFlow...${NC}"
   # shellcheck disable=SC2086
   docker compose $profile up -d --build
 
   echo -e "${GREEN}====================================================${NC}"
-  echo -e "${GREEN}🚀 StreamFlow v2 está levantado y en ejecución.${NC}"
+  echo -e "${GREEN}🚀 StreamFlow está levantado y en ejecución.${NC}"
   echo -e "${GREEN}====================================================${NC}"
   echo -e "  🌐 Frontend:  ${BLUE}http://localhost:3000${NC}"
   echo -e "  🔌 API:       ${BLUE}http://localhost:3001${NC}"
@@ -121,7 +121,7 @@ cmd_up() {
 
 cmd_down() {
   check_docker
-  echo -e "${YELLOW}==> Deteniendo servicios de StreamFlow v2...${NC}"
+  echo -e "${YELLOW}==> Deteniendo servicios de StreamFlow...${NC}"
   docker compose --profile production down
   echo -e "${GREEN}✅ Todos los servicios han sido detenidos.${NC}"
 }

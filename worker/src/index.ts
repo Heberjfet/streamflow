@@ -27,7 +27,7 @@ const workerConfig = computeWorkerConfig();
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 async function main() {
-  console.log('[Worker] Starting StreamFlow v2 worker...');
+  console.log('[Worker] Starting StreamFlow worker...');
   console.log('[Worker] Redis:', redisUrl);
   console.log('[Worker] Concurrency:', workerConfig.concurrency);
   console.log('[Worker] FFmpeg threads:', workerConfig.ffmpegThreads);
