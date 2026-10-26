@@ -35,7 +35,7 @@ services:
       - s3_data:/data
       - ./docker/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
     ports:
-      - "127.0.0.1:9000:8333"  # API S3 (accesible solo en localhost)
+      - "9000:8333"  # API S3 accesible desde la LAN para el frontend
       - "127.0.0.1:8888:8888"  # Filer UI (explorador de archivos)
     restart: unless-stopped
 
@@ -72,7 +72,7 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       PORT: 3001
-      CORS_ORIGINS: ${CORS_ORIGINS}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
@@ -121,13 +121,13 @@ services:
       context: .
       dockerfile: docker/frontend.Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-        NEXT_PUBLIC_S3_URL: ${NEXT_PUBLIC_S3_URL:-http://localhost:9000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+        NEXT_PUBLIC_S3_URL: ${NEXT_PUBLIC_S3_URL:-}
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-      NEXT_PUBLIC_S3_URL: ${NEXT_PUBLIC_S3_URL:-http://localhost:9000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+      NEXT_PUBLIC_S3_URL: ${NEXT_PUBLIC_S3_URL:-}
     depends_on:
       api:
         condition: service_healthy

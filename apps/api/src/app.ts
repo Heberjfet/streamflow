@@ -21,16 +21,46 @@ async function buildApp() {
     }
   });
 
-  const allowedOrigins = process.env.CORS_ORIGINS
+  const rawOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
-    : ['http://localhost:3000'];
-  const allowAllOrigins = allowedOrigins.includes('*');
+    : [];
+  const defaultOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  const allowedOrigins = Array.from(new Set([...defaultOrigins, ...rawOrigins]));
+  const allowAllOrigins = rawOrigins.includes('*');
 
   await fastify.register(cors, {
-    origin: allowAllOrigins ? true : allowedOrigins,
-    // No se puede combinar el comodín '*' con credenciales.
-    credentials: !allowAllOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+    origin: (origin, cb) => {
+      // Peticiones sin cabecera origin (curl, server-to-server, SSR)
+      if (!origin) {
+        cb(null, true);
+        return;
+      }
+      if (allowAllOrigins || allowedOrigins.includes(origin)) {
+        cb(null, true);
+        return;
+      }
+      // Permitir orígenes locales y de red privada (RFC 1918: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+      try {
+        const { hostname } = new URL(origin);
+        if (
+          hostname === 'localhost' ||
+          hostname === '127.0.0.1' ||
+          hostname === '::1' ||
+          /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+          /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+          /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+        ) {
+          cb(null, true);
+          return;
+        }
+      } catch {
+        // origin no es una URL válida
+      }
+      cb(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
   });
 
   await fastify.register(dbPlugin);

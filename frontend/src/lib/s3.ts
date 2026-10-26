@@ -1,8 +1,12 @@
 const getBaseUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_S3_URL
   if (typeof window !== 'undefined') {
-    return process.env.NEXT_PUBLIC_S3_URL || `http://${window.location.hostname}:9000`
+    if (!envUrl || ((envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) {
+      return `${window.location.protocol}//${window.location.hostname}:9000`
+    }
+    return envUrl
   }
-  return process.env.NEXT_PUBLIC_S3_URL || 'http://localhost:9000'
+  return envUrl || 'http://localhost:9000'
 }
 
 export const getS3Url = (key: string): string => {
