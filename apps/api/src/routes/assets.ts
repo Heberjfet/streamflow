@@ -256,13 +256,48 @@ export async function assetRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ error: 'Forbidden' });
       }
 
-      const inputKey = asset.sourceKey || `uploads/${userId}/${id}/original`;
-      const jobId = await assetService.enqueueTranscodeJob(id, userId, inputKey);
+      if (!asset.sourceKey) {
+        return reply.status(409).send({ error: 'El video no fue subido todavía' });
+      }
 
-      await fastify.db
+      // Transición atómica uploaded -> processing: evita el doble encolado
+      // de jobs para el mismo asset ante peticiones concurrentes.
+      const claimed = await fastify.db
         .update(fastify.schema.assets)
-        .set({ status: ASSET_STATUS.PROCESSING })
-        .where(fastify.eq(fastify.schema.assets.id, id));
+        .set({ status: ASSET_STATUS.PROCESSING, updatedAt: new Date() })
+        .where(
+          fastify.and(
+            fastify.eq(fastify.schema.assets.id, id),
+            fastify.eq(fastify.schema.assets.status, ASSET_STATUS.UPLOADED)
+          )
+        )
+        .returning();
+
+      if (claimed.length === 0) {
+        return reply.status(409).send({
+          error: `El video no está listo para procesarse (estado actual: ${asset.status})`
+        });
+      }
+
+      let jobId: string | null = null;
+      try {
+        jobId = await assetService.enqueueTranscodeJob(id, userId, asset.sourceKey);
+      } catch (enqueueError) {
+        // Si el encolado falla (Redis caído, etc.) devolvemos el asset a
+        // 'uploaded' para que se pueda reintentar.
+        await fastify.db
+          .update(fastify.schema.assets)
+          .set({ status: ASSET_STATUS.UPLOADED })
+          .where(fastify.eq(fastify.schema.assets.id, id))
+          .catch(() => undefined);
+        throw enqueueError;
+      }
+
+      if (!jobId) {
+        // Ya hay un job activo/esperando para este asset: el asset permanece
+        // en 'processing' porque el procesamiento SÍ está en curso.
+        return reply.status(409).send({ error: 'Ya existe una transcodificación en curso para este video' });
+      }
 
       return reply.send({ jobId });
     } catch (error) {

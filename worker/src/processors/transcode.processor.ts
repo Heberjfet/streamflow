@@ -92,6 +92,10 @@ export async function transcodeProcessor(job: { data: TranscodeJobData; updatePr
     if (probe.width === 0 || probe.height === 0) {
       throw new Error('Source video has no valid video stream');
     }
+    if (!Number.isFinite(probe.duration) || probe.duration <= 0) {
+      // Una duración inválida rompe la escalera (timeout NaN) y los sprites (fps=Infinity).
+      throw new Error('Source video duration is invalid or zero');
+    }
 
     await job.updateProgress(10);
 
@@ -139,6 +143,12 @@ export async function transcodeProcessor(job: { data: TranscodeJobData; updatePr
 
     console.log('[Transcode] Uploading to S3...');
     await s3Service.uploadFolder(outputDir, `assets/${assetId}/hls`);
+
+    // MP4 descargables fuera del prefijo HLS público (assets/{id}/downloads/).
+    for (const profile of ladder) {
+      const mp4Local = path.join(outputDir, profile.quality, 'download.mp4');
+      await s3Service.uploadFile(`assets/${assetId}/downloads/${profile.quality}.mp4`, mp4Local, 'video/mp4');
+    }
 
     const masterKey = `assets/${assetId}/hls/master.m3u8`;
     const thumbnailKey = `assets/${assetId}/hls/thumbnail.jpg`;

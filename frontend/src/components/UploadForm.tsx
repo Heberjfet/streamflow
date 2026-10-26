@@ -130,14 +130,26 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
 
       onUploadComplete?.()
 
+      // Muestra el progreso real de transcodificación que reporta el worker.
+      setStatus('processing')
+
       pollIntervalRef.current = setInterval(async () => {
         const { getAsset } = await import('@/lib/api')
         const polledAsset = await getAsset(asset.id)
+        if (!polledAsset.data) return
 
-        if (polledAsset.data?.status === 'ready') {
+        const { status, progress } = polledAsset.data
+
+        if (status === 'ready') {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
-        } else if (polledAsset.data?.status === 'failed') {
+          setProgress(100)
+          setStatus('done')
+        } else if (status === 'failed') {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+          setStatus('error')
+          setError('La transcodificación falló. Revisá los registros del servidor e intentá nuevamente.')
+        } else if (typeof progress === 'number') {
+          setProgress(progress)
         }
       }, 3000)
 

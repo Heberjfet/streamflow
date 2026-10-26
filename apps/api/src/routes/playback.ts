@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Readable } from 'node:stream';
 import { S3Service } from '../services/s3.service.js';
 
 interface PlaybackParams {
@@ -63,38 +63,58 @@ export async function playbackRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ error: 'Download not allowed' });
       }
 
+      if (quality && quality !== 'original' && !/^[a-zA-Z0-9]{1,10}$/.test(quality)) {
+        return reply.status(400).send({ error: 'Calidad inválida' });
+      }
+
+      // Convención: los MP4 descargables viven fuera del prefijo HLS público
+      // (assets/{id}/downloads/) para no eludir el flag allowDownload.
       let downloadKey: string;
       if (quality && quality !== 'original') {
-        downloadKey = asset.hlsManifestKey
-          ? asset.hlsManifestKey.replace('/master.m3u8', `/${quality}/download.mp4`)
-          : `assets/${asset.id}/hls/${quality}/download.mp4`;
+        downloadKey = `assets/${asset.id}/downloads/${quality}.mp4`;
       } else if (asset.sourceKey) {
         downloadKey = asset.sourceKey;
       } else {
-        downloadKey = asset.hlsManifestKey
-          ? asset.hlsManifestKey.replace('/master.m3u8', '/720p/download.mp4')
-          : `assets/${asset.id}/hls/720p/download.mp4`;
+        downloadKey = `assets/${asset.id}/downloads/720p.mp4`;
       }
 
-      const command = new GetObjectCommand({
-        Bucket: fastify.s3Config.bucket,
-        Key: downloadKey
-      });
-      const presignedUrl = await getSignedUrl(fastify.s3, command, { expiresIn: 3600 });
+      const fetchObject = async (key: string) => {
+        try {
+          return await fastify.s3.send(new GetObjectCommand({
+            Bucket: fastify.s3Config.bucket,
+            Key: key
+          }));
+        } catch (error) {
+          const notFound =
+            (error as { name?: string }).name === 'NoSuchKey' ||
+            (error as { Code?: string }).Code === 'NoSuchKey';
+          if (!notFound) throw error;
+          return null;
+        }
+      };
 
-      const response = await fetch(presignedUrl);
-      if (!response.ok) {
-        return reply.status(404).send({ error: 'File not found in storage' });
+      let s3Response = await fetchObject(downloadKey);
+      // Compatibilidad: assets transcodificados con el layout viejo guardaban
+      // download.mp4 dentro del prefijo HLS.
+      if (!s3Response && quality && quality !== 'original' && asset.hlsManifestKey) {
+        downloadKey = asset.hlsManifestKey.replace('/master.m3u8', `/${quality}/download.mp4`);
+        s3Response = await fetchObject(downloadKey);
+      }
+      if (!s3Response) {
+        return reply.status(404).send({ error: 'El archivo de descarga no existe en el storage' });
       }
 
-      const arrayBuffer = await response.arrayBuffer();
       const filename = `${(asset.title || 'video').replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
-
-      return reply
+      reply
         .header('Content-Type', 'video/mp4')
-        .header('Content-Disposition', `attachment; filename="${filename}"`)
-        .header('Content-Length', arrayBuffer.byteLength)
-        .send(Buffer.from(arrayBuffer));
+        .header('Content-Disposition', `attachment; filename="${filename}"`);
+      if (s3Response.ContentLength) {
+        reply.header('Content-Length', s3Response.ContentLength);
+      }
+
+      // Streaming server-side: memoria constante sin importar el tamaño, y sin
+      // depender del endpoint interno de S3 que el navegador no puede alcanzar.
+      return reply.send(s3Response.Body as Readable);
     } catch (error) {
       fastify.log.error(error);
       return reply.status(500).send({ error: 'Internal server error' });

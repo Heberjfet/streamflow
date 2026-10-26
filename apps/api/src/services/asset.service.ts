@@ -7,16 +7,39 @@ export class AssetService {
     private readonly transcodeQueue: Queue
   ) {}
 
-  async enqueueTranscodeJob(assetId: string, userId: string, inputKey: string): Promise<string> {
-    const job = await this.transcodeQueue.add('transcode', {
-      assetId,
-      userId,
-      inputKey,
-      outputKey: `hls/${assetId}/master.m3u8`,
-      thumbnailKey: `thumbnails/${assetId}/thumb.jpg`
-    });
+  /**
+   * Encola la transcodificación de un asset.
+   * Devuelve el id del job, o `null` si ya existe un job activo/esperando
+   * para el mismo asset (deduplicated con jobId = assetId).
+   */
+  async enqueueTranscodeJob(assetId: string, userId: string, inputKey: string): Promise<string | null> {
+    const existing = await this.transcodeQueue.getJob(assetId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === 'active' || state === 'waiting' || state === 'delayed' || state === 'prioritized') {
+        return null;
+      }
+      // Un job previo (completed/failed) conservado por removeOnComplete/removeOnFail
+      // impediría re-encolar con el mismo jobId en BullMQ v5: lo removemos primero.
+      try {
+        await existing.remove();
+      } catch {
+        // El job ya no existe: nada que limpiar.
+      }
+    }
 
-    return job.id || '';
+    const job = await this.transcodeQueue.add(
+      'transcode',
+      { assetId, userId, inputKey },
+      {
+        // jobId = assetId: dedupe nativo de BullMQ y trazabilidad directa.
+        jobId: assetId,
+        removeOnComplete: { count: 200 },
+        removeOnFail: { count: 500 }
+      }
+    );
+
+    return job.id || assetId;
   }
 
   generatePlaybackId(): string {

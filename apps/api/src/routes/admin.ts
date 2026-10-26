@@ -62,12 +62,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
         .orderBy(fastify.desc(fastify.schema.assets.createdAt))
         .limit(10);
 
+      // Métricas agregadas en la base de datos, no sobre los últimos 10 registros.
+      const statusRows = await fastify.db.execute(sql`SELECT status, COUNT(*)::int AS count FROM assets GROUP BY status`);
       const assetsByStatus: Record<string, number> = {};
-      for (const asset of assets) {
-        assetsByStatus[asset.status] = (assetsByStatus[asset.status] || 0) + 1;
+      for (const row of statusRows as unknown as Array<{ status: string; count: number }>) {
+        assetsByStatus[row.status] = Number(row.count);
       }
 
-      const totalViews = assets.reduce((sum, a) => sum + (a.views || 0), 0);
+      const viewsRows = await fastify.db.execute(sql`SELECT COALESCE(SUM(views), 0)::bigint AS total FROM assets`);
+      const totalViews = Number(viewsRows[0]?.total ?? 0);
 
       const memoryUsage = process.memoryUsage();
       const cpuUsage = process.cpuUsage();

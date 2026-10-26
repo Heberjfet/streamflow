@@ -1,12 +1,31 @@
 import {
   S3Client,
   GetObjectCommand,
-  PutObjectCommand,
   DeleteObjectsCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+import { Readable } from 'node:stream';
 import { createReadStream, createWriteStream, promises as fs } from 'fs';
 import { pipeline } from 'stream/promises';
 import path from 'path';
+
+const CONTENT_TYPES: Record<string, string> = {
+  '.m3u8': 'application/vnd.apple.mpegurl',
+  '.vtt': 'text/vtt',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.mp4': 'video/mp4',
+  '.ts': 'video/mp2t',
+  '.webm': 'video/webm',
+};
+
+function contentTypeFor(fileName: string): string {
+  const dot = fileName.lastIndexOf('.');
+  if (dot < 0) return 'application/octet-stream';
+  return CONTENT_TYPES[fileName.slice(dot).toLowerCase()] ?? 'application/octet-stream';
+}
 
 export class S3Service {
   private client: S3Client;
@@ -34,13 +53,7 @@ export class S3Service {
     await fs.mkdir(dirname, { recursive: true });
 
     if (response.Body) {
-      const body = response.Body as any;
-      if (body.transformToWriteStream) {
-        const writeStream = createWriteStream(localPath);
-        await pipeline(await body.transformToWriteStream(), writeStream);
-      } else {
-        await fs.writeFile(localPath, body);
-      }
+      await pipeline(response.Body as Readable, createWriteStream(localPath));
     }
     console.log(`[S3] Download complete: ${localPath}`);
   }
@@ -51,16 +64,18 @@ export class S3Service {
     contentType: string = 'application/octet-stream'
   ): Promise<void> {
     console.log(`[S3] Uploading ${localPath} to s3://${this.bucket}/${key}`);
-    const fileBuffer = await fs.readFile(localPath);
-
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: fileBuffer,
-      ContentType: contentType,
+    // Subida en streaming: no carga el archivo completo en memoria.
+    const upload = new Upload({
+      client: this.client,
+      params: {
+        Bucket: this.bucket,
+        Key: key,
+        Body: createReadStream(localPath),
+        ContentType: contentType,
+      },
     });
 
-    await this.client.send(command);
+    await upload.done();
     console.log(`[S3] Upload complete: ${key}`);
   }
 
@@ -76,13 +91,12 @@ export class S3Service {
       if (file.isDirectory()) {
         const subKeys = await this.uploadFolder(localPath, s3Key);
         uploadedKeys.push(...subKeys);
+      } else if (file.name === 'download.mp4') {
+        // Los MP4 descargables se suben aparte: fuera del prefijo HLS público
+        // para que la lectura anónima no eluya el flag allowDownload.
+        continue;
       } else {
-        const contentType = file.name.endsWith('.m3u8')
-          ? 'application/vnd.apple.mpegurl'
-          : file.name.endsWith('.vtt')
-          ? 'text/vtt'
-          : 'video/mp2t';
-        await this.uploadFile(s3Key, localPath, contentType);
+        await this.uploadFile(s3Key, localPath, contentTypeFor(file.name));
         uploadedKeys.push(s3Key);
       }
     }
@@ -90,13 +104,26 @@ export class S3Service {
     return uploadedKeys;
   }
 
+  /** Borra todos los objetos que empiezan con un prefijo (listado paginado por lotes). */
   async deleteFolder(prefix: string): Promise<void> {
     console.log(`[S3] Deleting folder s3://${this.bucket}/${prefix}`);
-    const command = new DeleteObjectsCommand({
-      Bucket: this.bucket,
-      Delete: { Objects: [{ Key: prefix }] },
-    });
-    await this.client.send(command);
+    let continuationToken: string | undefined;
+    do {
+      const listed = await this.client.send(new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }));
+
+      const objects = (listed.Contents || []).map(obj => ({ Key: obj.Key! })).filter(o => Boolean(o.Key));
+      if (objects.length > 0) {
+        await this.client.send(new DeleteObjectsCommand({
+          Bucket: this.bucket,
+          Delete: { Objects: objects },
+        }));
+      }
+      continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+    } while (continuationToken);
   }
 }
 

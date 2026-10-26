@@ -30,9 +30,24 @@ declare module '@fastify/jwt' {
   }
 }
 
+const JWT_SECRET_DEFAULTS = new Set([
+  'change-this-in-production',
+  'dev-secret-change-in-production',
+  'your-secret-key-change-in-production'
+]);
+
 export default fp(async function authPlugin(fastify: FastifyInstance) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    // Fallar al arranque es mejor que permitir tokens forjables.
+    throw new Error('JWT_SECRET no está definido. Configurá la variable de entorno con un secreto largo y aleatorio.');
+  }
+  if (JWT_SECRET_DEFAULTS.has(secret)) {
+    fastify.log.warn('JWT_SECRET usa un valor por defecto conocido. Cambialo en producción.');
+  }
+
   await fastify.register(fastifyJwt, {
-    secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    secret,
     sign: {
       expiresIn: '7d'
     }

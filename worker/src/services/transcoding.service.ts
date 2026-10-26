@@ -85,8 +85,9 @@ export async function extractPosterThumbnail(
 ): Promise<void> {
   const posterTime = Math.max(0, Math.floor(durationSec * 0.25));
   await runFfmpeg([
-    '-y', '-i', sourcePath,
+    '-y',
     '-ss', String(posterTime),
+    '-i', sourcePath,
     '-vframes', '1',
     '-vf', 'scale=640:-2',
     '-q:v', '2',
