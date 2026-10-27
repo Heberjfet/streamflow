@@ -171,12 +171,7 @@ export default function VideoDetailPage() {
                   )}
                 </button>
 
-                <div 
-                  title="Compartir"
-                  className="flex-1 h-14 flex items-center justify-center rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 text-white/60 hover:text-white transition-all [&_span]:hidden [&_button]:w-full [&_button]:h-full [&_button]:flex [&_button]:items-center [&_button]:justify-center"
-                >
-                  <ShareDropdown playbackId={asset.playbackId} />
-                </div>
+                <ShareDropdown playbackId={asset.playbackId} />
 
                 {allowDownload && (
                   <button

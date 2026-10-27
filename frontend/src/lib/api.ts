@@ -1,5 +1,11 @@
 export const getApiUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL
+  if (typeof window !== 'undefined') {
+    if (!envUrl || ((envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) {
+      const protocol = window.location.protocol
+      return `${protocol}//${window.location.hostname}:3001`
+    }
+  }
   if (envUrl) {
     if (envUrl.startsWith('http://') || envUrl.startsWith('https://') || envUrl.startsWith('/')) {
       return envUrl
@@ -264,10 +270,94 @@ export const deleteUser = async (userId: string): Promise<ApiResponse<void>> => 
   return handleResponse<void>(res)
 }
 
+export interface ServiceHealth {
+  name: string;
+  status: 'healthy' | 'degraded' | 'down' | 'warning';
+  latencyMs: number;
+  details: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ServicesStatus {
+  api: ServiceHealth;
+  database: ServiceHealth;
+  redis: ServiceHealth;
+  s3: ServiceHealth;
+  worker: ServiceHealth;
+}
+
+export interface AuditItem {
+  id: string;
+  timestamp: string;
+  actor: {
+    id?: string;
+    name: string;
+    email?: string;
+    role?: string;
+    isSystem?: boolean;
+  };
+  action: string;
+  actionLabel: string;
+  resource: {
+    type: 'asset' | 'user' | 'system';
+    id: string;
+    title: string;
+  };
+  status: string;
+  severity: 'success' | 'info' | 'warning' | 'error';
+  metadata?: Record<string, unknown>;
+}
+
+export interface HostMetrics {
+  uptime: number;
+  platform: string;
+  arch: string;
+  release: string;
+  cpus: {
+    cores: number;
+    model: string;
+    speedMHz: number;
+    loadAvg: [number, number, number];
+    loadAvgPercent: number;
+    usagePercent: number;
+  };
+  memory: {
+    totalBytes: number;
+    freeBytes: number;
+    usedBytes: number;
+    totalMB: number;
+    freeMB: number;
+    usedMB: number;
+    usedPercent: number;
+  };
+}
+
+export interface ProcessMetrics {
+  uptime: number;
+  pid: number;
+  nodeVersion: string;
+  cpuUsage: {
+    userMicroseconds: number;
+    systemMicroseconds: number;
+    userSeconds: number;
+    systemSeconds: number;
+    usagePercent: number;
+  };
+  memoryUsage: {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+    external: number;
+    heapUsedPercent: number;
+  };
+}
+
 export interface AdminStats {
   totalAssets: number;
   totalUsers: number;
   totalViews: number;
+  serverTime?: string;
+  serverTimezone?: string;
   assetsByStatus: Record<string, number>;
   recentAssets: Array<{
     id: string;
@@ -276,6 +366,24 @@ export interface AdminStats {
     views: number;
     createdAt: string;
   }>;
+  queueStats?: {
+    active: number;
+    waiting: number;
+    completed: number;
+    failed: number;
+    delayed: number;
+    workersCount: number;
+  };
+  storageStats?: {
+    totalDurationSeconds: number;
+    readyCount: number;
+    failedCount: number;
+    processingCount: number;
+    successRate: number;
+  };
+  services?: ServicesStatus;
+  host?: HostMetrics;
+  process?: ProcessMetrics;
   systemInfo: {
     uptime: number;
     memoryUsage: {
@@ -288,17 +396,26 @@ export interface AdminStats {
       user: number;
       system: number;
     };
+    host?: HostMetrics;
+    process?: ProcessMetrics;
+    serverTime?: string;
+    serverTimezone?: string;
   };
 }
 
 export interface AdminLogs {
+  items?: AuditItem[];
+  total?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
   assets: Array<{
     id: string;
     title: string;
     status: string;
     views: number;
     createdAt: string;
-    updatedAt: string;
+    updatedAt?: string;
   }>;
   users: Array<{
     id: string;
@@ -310,6 +427,14 @@ export interface AdminLogs {
   timestamp: string;
 }
 
+export interface AdminLogsParams {
+  limit?: number;
+  page?: number;
+  search?: string;
+  type?: string;
+  status?: string;
+}
+
 export const getAdminStats = async (): Promise<ApiResponse<AdminStats>> => {
   const res = await fetch(`${getApiUrl()}/v1/admin/stats`, {
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
@@ -317,8 +442,20 @@ export const getAdminStats = async (): Promise<ApiResponse<AdminStats>> => {
   return handleResponse<AdminStats>(res)
 }
 
-export const getAdminLogs = async (limit?: number): Promise<ApiResponse<AdminLogs>> => {
-  const url = limit ? `${getApiUrl()}/v1/admin/logs?limit=${limit}` : `${getApiUrl()}/v1/admin/logs`
+export const getAdminLogs = async (paramsOrLimit?: number | AdminLogsParams): Promise<ApiResponse<AdminLogs>> => {
+  let queryString = '';
+  if (typeof paramsOrLimit === 'number') {
+    queryString = `?limit=${paramsOrLimit}`;
+  } else if (paramsOrLimit && typeof paramsOrLimit === 'object') {
+    const sp = new URLSearchParams();
+    if (paramsOrLimit.limit) sp.set('limit', String(paramsOrLimit.limit));
+    if (paramsOrLimit.page) sp.set('page', String(paramsOrLimit.page));
+    if (paramsOrLimit.search) sp.set('search', paramsOrLimit.search);
+    if (paramsOrLimit.type) sp.set('type', paramsOrLimit.type);
+    if (paramsOrLimit.status) sp.set('status', paramsOrLimit.status);
+    queryString = `?${sp.toString()}`;
+  }
+  const url = `${getApiUrl()}/v1/admin/logs${queryString}`
   const res = await fetch(url, {
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
   })
